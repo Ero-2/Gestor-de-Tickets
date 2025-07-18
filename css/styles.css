@@ -1,0 +1,46 @@
+/* Estilo general del header */
+header {
+    background-color: #004080;       /* Azul corporativo */
+    color: white;                    /* Texto en blanco para contraste */
+    padding: 20px 40px;              /* Espaciado interno (top/bottom, left/right) */
+    display: flex;                   /* Activa flexbox para alinear elementos */
+    justify-content: space-between; /* Separa el título del menú de navegación */
+    align-items: center;            /* Centra verticalmente los elementos */
+    box-shadow: 0 5px 8px rgba(0, 0, 0, 0.2); /* Sombra suave debajo del header */
+    position: fixed;                /* Mantiene el header fijo arriba al hacer scroll */
+    top: 0;
+    width: 100%;
+    z-index: 1000;
+}
+
+/* Encabezado h1 y h2 dentro del header */
+header h1 {
+    font-size: 24px;
+    margin: 0;
+}
+
+header h2 {
+    font-size: 24px;
+    margin: 0;
+    font-weight: 300;
+}
+
+/* Navegación del header */
+nav ul {
+    list-style: none;      /* Quita los puntitos de la lista */
+    margin: 0;
+    padding: 0;
+    display: flex;         /* Los <li> se colocan en línea */
+    gap: 20px;             /* Espacio entre ellos */
+}
+
+nav a {
+    color: white;          /* Texto blanco para contraste */
+    text-decoration: none; /* Quita subrayado */
+    font-weight: bold;
+    transition: color 0.3s;
+}
+
+nav a:hover {
+    color: #ffc107;        /* Color amarillo al pasar el mouse */
+}
