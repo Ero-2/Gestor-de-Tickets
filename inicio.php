@@ -1,140 +1,72 @@
-<?php 
-session_start();
+<?php
+// inicio.php - Plantilla principal de la aplicación
 
-// Verificar si el usuario está logueado
+// Inicia la sesión
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Verifica si el usuario está autenticado
 if (!isset($_SESSION['user'])) {
     header('Location: login.php');
     exit;
 }
+
+$page = $_GET['page'] ?? 'dashboard';
+
+// Definir páginas permitidas según el tipo de usuario
+$is_admin = $_SESSION['user']['IdTipoDeUsuario'] == 1;
+$allowed_pages = ['dashboard', 'perfil','registro'];
+
+if ($is_admin) {
+    // Páginas permitidas para administradores
+    $allowed_pages = array_merge($allowed_pages, ['tickets', 'admin', 'registro', 'resueltos', 'gestionar_usuarios']);
+} else {
+    // Páginas permitidas para usuarios normales
+    $allowed_pages = array_merge($allowed_pages, ['tickets', 'crear-ticket']);
+}
+
+if (!in_array($page, $allowed_pages)) {
+    http_response_code(404);
+    $page = '404';
+}
 ?>
 
-<?php include 'includes/header.php'; ?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gestión de Tickets</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <!-- Estilos personalizados -->
+  <link rel="stylesheet" href="css/inicio.css">
+</head>
+<body>
 
-<!-- Contenido principal -->
-<div class="container mt-4">
-    <h2 class="mb-4">Bienvenido, <?php echo htmlspecialchars($_SESSION['user']['nombre']); ?></h2>
+  <?php include __DIR__ . '/includes/header.php'; ?>
 
-    <div class="row">
-        <div class="col-md-8">
-            <h4>Mis Tickets</h4>
-            <div id="tickets-list" class="mb-4">
-                <!-- Aquí se cargarán los tickets dinámicamente -->
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <h4>Acciones rápidas</h4>
-            <ul class="list-group">
-                <li class="list-group-item">
-                    <a href="crear-ticket.php" class="text-decoration-none">
-                        <i class="bi bi-plus-circle"></i> Crear nuevo ticket
-                    </a>
-                </li>
-                <li class="list-group-item">
-                    <a href="perfil.php" class="text-decoration-none">
-                        <i class="bi bi-person"></i> Mi perfil
-                    </a>
-                </li>
-                <?php if ($_SESSION['user']['IdTipoDeUsuario'] == 1): ?>
-                    <li class="list-group-item">
-                        <a href="admin.php" class="text-decoration-none">
-                            <i class="bi bi-gear"></i> Panel de administración
-                        </a>
-                    </li>
-                <?php endif; ?>
-            </ul>
-        </div>
-    </div>
-</div>
-
-<!-- Cargar tickets dinámicamente -->
-<script>
-fetch('/GestionDeTickets/api/tickets.php')
-    .then(response => response.json())
-    .then(data => {
-        const container = document.getElementById('tickets-list');
-        const usuarioId = <?php echo $_SESSION['user']['IdUsuario']; ?>;
-        const isAdmin = <?php echo ($_SESSION['user']['IdTipoDeUsuario'] == 1) ? 'true' : 'false'; ?>;
-
-        if (data.length === 0) {
-            container.innerHTML = '<p class="text-muted">No tienes tickets asignados.</p>';
-            return;
-        }
-
-        data.forEach(ticket => {
-            // Si es usuario normal, mostrar solo sus tickets
-            if (!isAdmin && ticket.IdUsuarioCreador != usuarioId) return;
-
-            const card = document.createElement('div');
-            card.className = 'card mb-3';
-
-            const estadoBadge = {
-                'Abierto': 'bg-success',
-                'En proceso': 'bg-primary',
-                'Cerrado': 'bg-secondary'
-            }[ticket.EstadoTicket] || 'bg-warning text-dark';
-
-            card.innerHTML = `
-                <div class="card-body">
-                    <h5 class="card-title">${ticket.Titulo}</h5>
-                    <p class="card-text">${ticket.Descripcion}</p>
-                    <p class="card-text">
-                        <strong>Prioridad:</strong> ${ticket.Prioridad} <br>
-                        <strong>Estado:</strong> <span class="badge ${estadoBadge}">${ticket.EstadoTicket}</span>
-                    </p>
-                    ${isAdmin ? `
-                    <div>
-                        <button class="btn btn-sm btn-success" onclick="updateStatus(${ticket.IdTickets}, 'Cerrado')">Cerrar</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteTicket(${ticket.IdTickets})">Eliminar</button>
-                    </div>
-                    ` : ''}
-                </div>
-            `;
-
-            container.appendChild(card);
-        });
-    })
-    .catch(err => {
-        console.error('Error al cargar los tickets:', err);
-        document.getElementById('tickets-list').innerHTML = `
-            <div class="alert alert-danger">Hubo un error al cargar tus tickets.</div>
-        `;
-    });
-
-// Funciones para admin
-function updateStatus(idTicket, estado) {
-    fetch('/GestionDeTickets/api/tickets.php', {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ id_ticket: idTicket, estado: estado })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Estado actualizado');
-            location.reload();
+  <div class="d-flex">
+    <main class="flex-fill content">
+      <?php
+        // Incluye la vista correspondiente según la página solicitada
+        $viewFile = __DIR__ . "/views/{$page}.php";
+        if (file_exists($viewFile)) {
+            include $viewFile;
         } else {
-            alert('Error al actualizar estado: ' + (data.error || 'Desconocido'));
+            echo '<div class="alert alert-warning">Página no encontrada.</div>';
         }
-    });
-}
+      ?>
+    </main>
+  </div>
 
-function deleteTicket(idTicket) {
-    if (!confirm('¿Estás seguro de eliminar este ticket?')) return;
+  <?php include __DIR__ . '/includes/footer.php'; ?>
 
-    fetch('/GestionDeTickets/api/tickets.php?id=' + idTicket, {
-        method: 'DELETE'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Ticket eliminado');
-            location.reload();
-        } else {
-            alert('Error al eliminar: ' + (data.error || 'Desconocido'));
-        }
-    });
-}
-</script>
-
-<?php include 'includes/footer.php'; ?>
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/tickets.js"></script>
+</body>
+</html>

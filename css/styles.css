@@ -1,6 +1,6 @@
 /* Estilo general del header */
 header {
-    background-color: #004080;       /* Azul corporativo */
+    background-color: #1f7ddb;       /* Azul corporativo */
     color: white;                    /* Texto en blanco para contraste */
     padding: 20px 40px;              /* Espaciado interno (top/bottom, left/right) */
     display: flex;                   /* Activa flexbox para alinear elementos */
@@ -11,6 +11,10 @@ header {
     top: 0;
     width: 100%;
     z-index: 1000;
+}
+
+body {
+    background-color: rgb(255, 255, 255);
 }
 
 /* Encabezado h1 y h2 dentro del header */
@@ -44,3 +48,4 @@ nav a {
 nav a:hover {
     color: #ffc107;        /* Color amarillo al pasar el mouse */
 }
+

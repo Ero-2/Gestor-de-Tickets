@@ -1,4 +1,4 @@
-<?php session_start(); ?>
+<?php ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -35,10 +35,9 @@
             <option value="">Selecciona un tipo de usuario</option>
           </select>
         </div>
-        <button type="submit" class="btn btn-success w-100">Registrar</button>
+        <button type="submit" class="btn btn-info w-100">Registrar</button>
       </form>
-      <div class="mt-3 text-center">
-        <a href="login.php">Volver al login</a>
+      <div class="mt-3 text-center">   
       </div>
     </div>
   </div>

@@ -1,7 +1,13 @@
 <?php
 session_start();
-error_reporting(E_ALL); // Para depuración
-ini_set('display_errors', 1); // Para depuración
+require 'vendor/autoload.php'; // Incluir Composer autoload
+require 'config.php'; // Incluir la configuración con la clave secreta
+
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
+
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -52,9 +58,28 @@ try {
         exit;
     }
 
-    // Login exitoso
+    // 🔐 Usar la clave secreta fija definida en config.php
+    $secret_key = JWT_SECRET_KEY;
+    $issued_at = time();
+    $expiration_time = $issued_at + (60 * 60 * 24); // 24 horas de vida del token
+
+    // 📦 Construir el payload del JWT
+    $payload = [
+        'id_usuario' => $user['IdUsuario'],
+        'usuario' => $user['Usuario'],
+        'tipo_id' => $user['IdTipoDeUsuario'],
+        'tipo' => $user['Descripcion'],
+        'iat' => $issued_at, // Tiempo de emisión
+        'exp' => $expiration_time // Tiempo de expiración
+    ];
+
+    // ✅ Generar el JWT firmado con la clave fija
+    $jwt = JWT::encode($payload, $secret_key, 'HS256'); // Usar HS256 o RS256
+
+    // 🎉 Devolver el JWT al cliente
     echo json_encode([
         'success' => true,
+        'jwt_token' => $jwt,
         'id' => $user['IdUsuario'],
         'usuario' => $user['Usuario'],
         'tipo' => $user['Descripcion'],
@@ -64,5 +89,6 @@ try {
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Error al consultar la base de datos']);
+    exit;
 }
 ?>

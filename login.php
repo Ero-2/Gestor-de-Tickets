@@ -6,19 +6,24 @@
   <title>Login</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
+  
 </head>
 
 <body class="bg-light d-flex align-items-center justify-content-center vh-100">
   <div class="container">
     <header class="text-center mb-4">
-      <h1>Gestión de Tickets</h1>
-      <h2 class="h5">FASEMEX</h2>
+      <h1>GESTION DE TICKETS FASEMEX</h1>
       <nav>
         <ul class="list-inline">
           <li class="list-inline-item"><a href="#">Ayuda</a></li>
         </ul>
       </nav>
     </header>
+
+    <div class="row">
+    <div class="col-md-6 image-container">
+        <img src="fotos/login.png" alt="Login Image" class="img-fluid rounded">
+     </div>
 
     <div class="card p-4 shadow mx-auto" style="width: 24rem;">
       <h4 class="text-center mb-4">Iniciar sesión</h4>
@@ -37,8 +42,8 @@
     </div>
   </div>
 
- <script>
-  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+<script>
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const usuario = document.getElementById('usuario').value.trim();
@@ -49,33 +54,36 @@
     mensaje.classList.remove('text-danger', 'text-success');
 
     try {
-      const response = await fetch('/GestionDeTickets/api/login.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin', // 🔐 Para mantener la sesión PHP
-        body: JSON.stringify({ usuario, clave })
-      });
+        const response = await fetch('/GestionDeTickets/api/login.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin', // 🔐 Para mantener la sesión PHP
+            body: JSON.stringify({ usuario, clave })
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (!response.ok || !data.success) {
-        mensaje.textContent = data.error || 'Credenciales incorrectas';
-        mensaje.classList.add('text-danger');
-        return;
-      }
+        if (!response.ok || !data.success) {
+            mensaje.textContent = data.error || 'Credenciales incorrectas';
+            mensaje.classList.add('text-danger');
+            return;
+        }
 
-      mensaje.textContent = 'Login exitoso. Redirigiendo...';
-      mensaje.classList.add('text-success');
+        // ✅ Guardar el JWT en localStorage
+        localStorage.setItem('jwt_token', data.jwt_token); // O sessionStorage
 
-      setTimeout(() => {
-        window.location.href = '/GestionDeTickets/inicio.php';
-      }, 1000);
+        mensaje.textContent = 'Login exitoso. Redirigiendo...';
+        mensaje.classList.add('text-success');
+
+        setTimeout(() => {
+            window.location.href = '/GestionDeTickets/inicio.php';
+        }, 1000);
     } catch (error) {
-      console.error('Fetch error:', error);
-      mensaje.textContent = 'Error al conectar con el servidor';
-      mensaje.classList.add('text-danger');
+        console.error('Fetch error:', error);
+        mensaje.textContent = 'Error al conectar con el servidor';
+        mensaje.classList.add('text-danger');
     }
-  });
+});
 </script>
 
 </body>

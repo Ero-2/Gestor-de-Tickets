@@ -1,64 +1,95 @@
-<?php 
-session_start();
-if ($_SESSION['user']['IdTipoDeUsuario'] !== 1) {
-    header('Location: login.php');
+<?php
+// Verificar que solo los administradores puedan acceder
+if (!isset($_SESSION['user']) || $_SESSION['user']['IdTipoDeUsuario'] != 1) {
+    header('Location: inicio.php');
     exit;
 }
 ?>
-<?php include 'includes/header.php'; ?>
-<div class="container mt-4">
-    <h2>Todos los Tickets</h2>
-    <div id="admin-tickets"></div>
-</div>
 
-<script>
-fetch('/GestionDeTickets/api/tickets.php')
-    .then(response => response.json())
-    .then(data => {
-        const container = document.getElementById('admin-tickets');
-        data.forEach(ticket => {
-            const card = `
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h5 class="card-title">${ticket.Titulo}</h5>
-                        <p class="card-text">${ticket.Descripcion}</p>
-                        <p><strong>Prioridad:</strong> ${ticket.Prioridad}</p>
-                        <p><strong>Estado:</strong> ${ticket.EstadoTicket}</p>
-                        <p><strong>Creador:</strong> ${ticket.Usuario}</p>
-                        <button class="btn btn-sm btn-warning" onclick="updateStatus(${ticket.IdTickets}, 'Cerrado')">Cerrar</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteTicket(${ticket.IdTickets})">Eliminar</button>
+<div class="container-fluid">
+    <h2>Panel de Administración</h2>
+    
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Resumen de Tickets</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card text-white bg-primary">
+                                <div class="card-body text-center">
+                                    <h6>Total Tickets</h6>
+                                    <h3 id="totalTickets">-</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white bg-warning">
+                                <div class="card-body text-center">
+                                    <h6>Pendientes</h6>
+                                    <h3 id="pendingTickets">-</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white bg-success">
+                                <div class="card-body text-center">
+                                    <h6>Resueltos</h6>
+                                    <h3 id="resolvedTickets">-</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white bg-danger">
+                                <div class="card-body text-center">
+                                    <h6>Urgentes</h6>
+                                    <h3 id="urgentTickets">-</h3>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            `;
-            container.innerHTML += card;
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5>Gestión de Tickets</h5>
+        </div>
+        <div class="card-body">
+            <div id="adminTicketsContent">
+                <!-- Aquí se cargará el contenido de tickets para administradores -->
+                <?php include 'tickets.php'; ?>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+function loadTicketCounts() {
+    fetch('api/tickets.php')
+        .then(response => response.json())
+        .then(data => {
+            if (!data.error) {
+                document.getElementById('totalTickets').textContent = data.total_tickets;
+                document.getElementById('pendingTickets').textContent = data.pending_tickets;
+                document.getElementById('resolvedTickets').textContent = data.resolved_tickets;
+                document.getElementById('urgentTickets').textContent = data.urgent_tickets;
+            } else {
+                alert('Error al cargar los conteos de tickets: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cargar los conteos de tickets');
         });
-    });
-
-function updateStatus(idTicket, status) {
-    fetch('/GestionDeTickets/api/tickets.php', {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({id_ticket: idTicket, estado: status})
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Estado actualizado');
-            location.reload();
-        }
-    });
 }
 
-function deleteTicket(idTicket) {
-    if (confirm('¿Estás seguro de eliminar este ticket?')) {
-        fetch(`/GestionDeTickets/api/tickets.php?id=${idTicket}`, {method: 'DELETE'})
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Ticket eliminado');
-                    location.reload();
-                }
-            });
-    }
-}
+// Carga los conteos inicialmente al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    loadTickets();
+    loadTicketCounts();
+});
 </script>
