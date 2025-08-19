@@ -42,8 +42,8 @@
     </div>
   </div>
 
-<script>
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
+ <script>
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const usuario = document.getElementById('usuario').value.trim();
@@ -54,36 +54,33 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     mensaje.classList.remove('text-danger', 'text-success');
 
     try {
-        const response = await fetch('/GestionDeTickets/api/login.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin', // 🔐 Para mantener la sesión PHP
-            body: JSON.stringify({ usuario, clave })
-        });
+      const response = await fetch('/GestionDeTickets/api/login.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin', // 🔐 Para mantener la sesión PHP
+        body: JSON.stringify({ usuario, clave })
+      });
 
-        const data = await response.json();
+      const data = await response.json();
 
-        if (!response.ok || !data.success) {
-            mensaje.textContent = data.error || 'Credenciales incorrectas';
-            mensaje.classList.add('text-danger');
-            return;
-        }
-
-        // ✅ Guardar el JWT en localStorage
-        localStorage.setItem('jwt_token', data.jwt_token); // O sessionStorage
-
-        mensaje.textContent = 'Login exitoso. Redirigiendo...';
-        mensaje.classList.add('text-success');
-
-        setTimeout(() => {
-            window.location.href = '/GestionDeTickets/inicio.php';
-        }, 1000);
-    } catch (error) {
-        console.error('Fetch error:', error);
-        mensaje.textContent = 'Error al conectar con el servidor';
+      if (!response.ok || !data.success) {
+        mensaje.textContent = data.error || 'Credenciales incorrectas';
         mensaje.classList.add('text-danger');
+        return;
+      }
+
+      mensaje.textContent = 'Login exitoso. Redirigiendo...';
+      mensaje.classList.add('text-success');
+
+      setTimeout(() => {
+        window.location.href = '/GestionDeTickets/inicio.php';
+      }, 1000);
+    } catch (error) {
+      console.error('Fetch error:', error);
+      mensaje.textContent = 'Error al conectar con el servidor';
+      mensaje.classList.add('text-danger');
     }
-});
+  });
 </script>
 
 </body>
