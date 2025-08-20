@@ -155,6 +155,8 @@ if (!isset($_SESSION['user'])) {
             }
         }
 
+        
+
         function formatDate(dateString) {
             const date = new Date(dateString);
             return date.toLocaleDateString('es-ES') + ' ' + date.toLocaleTimeString('es-ES');
