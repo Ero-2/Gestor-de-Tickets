@@ -8,21 +8,21 @@ use Psr\Http\Message\ResponseInterface;
 
 final class PermessageDeflateOptions
 {
-    public const MAX_WINDOW_BITS = 15;
+    const MAX_WINDOW_BITS = 15;
+    /* this is a private instead of const for 5.4 compatibility */
+    private static $VALID_BITS = ['8', '9', '10', '11', '12', '13', '14', '15'];
 
-    private const VALID_BITS = [8, 9, 10, 11, 12, 13, 14, 15];
+    private $deflateEnabled = false;
 
-    private bool $deflateEnabled = false;
-
-    private ?bool $server_no_context_takeover = null;
-    private ?bool $client_no_context_takeover = null;
-    private ?int $server_max_window_bits = null;
-    private ?int $client_max_window_bits = null;
+    private $server_no_context_takeover;
+    private $client_no_context_takeover;
+    private $server_max_window_bits;
+    private $client_max_window_bits;
 
     private function __construct() { }
 
     public static function createEnabled() {
-        $new                             = new self();
+        $new                             = new static();
         $new->deflateEnabled             = true;
         $new->client_max_window_bits     = self::MAX_WINDOW_BITS;
         $new->client_no_context_takeover = false;
@@ -33,35 +33,35 @@ final class PermessageDeflateOptions
     }
 
     public static function createDisabled() {
-        return new self();
+        return new static();
     }
 
-    public function withClientNoContextTakeover(): self {
+    public function withClientNoContextTakeover() {
         $new = clone $this;
         $new->client_no_context_takeover = true;
         return $new;
     }
 
-    public function withoutClientNoContextTakeover(): self {
+    public function withoutClientNoContextTakeover() {
         $new = clone $this;
         $new->client_no_context_takeover = false;
         return $new;
     }
 
-    public function withServerNoContextTakeover(): self {
+    public function withServerNoContextTakeover() {
         $new = clone $this;
         $new->server_no_context_takeover = true;
         return $new;
     }
 
-    public function withoutServerNoContextTakeover(): self {
+    public function withoutServerNoContextTakeover() {
         $new = clone $this;
         $new->server_no_context_takeover = false;
         return $new;
     }
 
-    public function withServerMaxWindowBits(int $bits = self::MAX_WINDOW_BITS): self {
-        if (!in_array($bits, self::VALID_BITS)) {
+    public function withServerMaxWindowBits($bits = self::MAX_WINDOW_BITS) {
+        if (!in_array($bits, self::$VALID_BITS)) {
             throw new \Exception('server_max_window_bits must have a value between 8 and 15.');
         }
         $new = clone $this;
@@ -69,8 +69,8 @@ final class PermessageDeflateOptions
         return $new;
     }
 
-    public function withClientMaxWindowBits(int $bits = self::MAX_WINDOW_BITS): self {
-        if (!in_array($bits, self::VALID_BITS)) {
+    public function withClientMaxWindowBits($bits = self::MAX_WINDOW_BITS) {
+        if (!in_array($bits, self::$VALID_BITS)) {
             throw new \Exception('client_max_window_bits must have a value between 8 and 15.');
         }
         $new = clone $this;
@@ -86,7 +86,7 @@ final class PermessageDeflateOptions
      * @return PermessageDeflateOptions[]
      * @throws \Exception
      */
-    public static function fromRequestOrResponse(MessageInterface $requestOrResponse): array {
+    public static function fromRequestOrResponse(MessageInterface $requestOrResponse) {
         $optionSets = [];
 
         $extHeader = preg_replace('/\s+/', '', join(', ', $requestOrResponse->getHeader('Sec-Websocket-Extensions')));
@@ -103,7 +103,7 @@ final class PermessageDeflateOptions
             }
 
             array_shift($parts);
-            $options                 = new self();
+            $options                 = new static();
             $options->deflateEnabled = true;
             foreach ($parts as $part) {
                 $kv = explode('=', $part);
@@ -119,18 +119,15 @@ final class PermessageDeflateOptions
                         $value = true;
                         break;
                     case "server_max_window_bits":
-                        $value = (int) $value;
-                        if (!in_array($value, self::VALID_BITS)) {
+                        if (!in_array($value, self::$VALID_BITS)) {
                             throw new InvalidPermessageDeflateOptionsException($key . ' must have a value between 8 and 15.');
                         }
                         break;
                     case "client_max_window_bits":
                         if ($value === null) {
-                            $value = 15;
-                        } else {
-                            $value = (int) $value;
+                            $value = '15';
                         }
-                        if (!in_array($value, self::VALID_BITS)) {
+                        if (!in_array($value, self::$VALID_BITS)) {
                             throw new InvalidPermessageDeflateOptionsException($key . ' must have no value or a value between 8 and 15.');
                         }
                         break;
@@ -157,39 +154,39 @@ final class PermessageDeflateOptions
         }
 
         // always put a disabled on the end
-        $optionSets[] = new self();
+        $optionSets[] = new static();
 
         return $optionSets;
     }
 
     /**
-     * @return bool|null
+     * @return mixed
      */
-    public function getServerNoContextTakeover(): ?bool
+    public function getServerNoContextTakeover()
     {
         return $this->server_no_context_takeover;
     }
 
     /**
-     * @return bool|null
+     * @return mixed
      */
-    public function getClientNoContextTakeover(): ?bool
+    public function getClientNoContextTakeover()
     {
         return $this->client_no_context_takeover;
     }
 
     /**
-     * @return int|null
+     * @return mixed
      */
-    public function getServerMaxWindowBits(): ?int
+    public function getServerMaxWindowBits()
     {
         return $this->server_max_window_bits;
     }
 
     /**
-     * @return int|null
+     * @return mixed
      */
-    public function getClientMaxWindowBits(): ?int
+    public function getClientMaxWindowBits()
     {
         return $this->client_max_window_bits;
     }
@@ -197,7 +194,7 @@ final class PermessageDeflateOptions
     /**
      * @return bool
      */
-    public function isEnabled(): bool
+    public function isEnabled()
     {
         return $this->deflateEnabled;
     }
@@ -206,7 +203,7 @@ final class PermessageDeflateOptions
      * @param ResponseInterface $response
      * @return ResponseInterface
      */
-    public function addHeaderToResponse(ResponseInterface $response): ResponseInterface
+    public function addHeaderToResponse(ResponseInterface $response)
     {
         if (!$this->deflateEnabled) {
             return $response;
@@ -229,7 +226,7 @@ final class PermessageDeflateOptions
         return $response->withAddedHeader('Sec-Websocket-Extensions', $header);
     }
 
-    public function addHeaderToRequest(RequestInterface $request): RequestInterface {
+    public function addHeaderToRequest(RequestInterface $request) {
         if (!$this->deflateEnabled) {
             return $request;
         }
@@ -252,7 +249,7 @@ final class PermessageDeflateOptions
         return $request->withAddedHeader('Sec-Websocket-Extensions', $header);
     }
 
-    public static function permessageDeflateSupported(string $version = PHP_VERSION): bool {
+    public static function permessageDeflateSupported($version = PHP_VERSION) {
         if (!function_exists('deflate_init')) {
             return false;
         }

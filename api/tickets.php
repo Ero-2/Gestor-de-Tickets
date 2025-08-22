@@ -222,3 +222,7 @@ switch ($method) {
         echo json_encode(['error' => 'Método no permitido']);
         break;
 }
+
+// Después de crear el ticket
+require_once 'send_notification.php';
+sendWebSocketNotification($admin_user_id, "Nuevo ticket creado: " . $titulo, $ticketId);

@@ -3,14 +3,10 @@
 use GuzzleHttp\Psr7\Message;
 use GuzzleHttp\Psr7\Response;
 use Ratchet\RFC6455\Handshake\PermessageDeflateOptions;
-use Ratchet\RFC6455\Handshake\RequestVerifier;
-use Ratchet\RFC6455\Handshake\ServerNegotiator;
-use Ratchet\RFC6455\Messaging\CloseFrameChecker;
 use Ratchet\RFC6455\Messaging\MessageBuffer;
 use Ratchet\RFC6455\Messaging\MessageInterface;
 use Ratchet\RFC6455\Messaging\FrameInterface;
 use Ratchet\RFC6455\Messaging\Frame;
-use GuzzleHttp\Psr7\HttpFactory;
 
 require_once __DIR__ . "/../bootstrap.php";
 
@@ -18,22 +14,17 @@ $loop   = \React\EventLoop\Factory::create();
 
 $socket = new \React\Socket\Server('0.0.0.0:9001', $loop);
 
-$closeFrameChecker = new CloseFrameChecker;
-
-$negotiator = new ServerNegotiator(
-    new RequestVerifier,
-    new HttpFactory(),
-    PermessageDeflateOptions::permessageDeflateSupported()
-);
+$closeFrameChecker = new \Ratchet\RFC6455\Messaging\CloseFrameChecker;
+$negotiator = new \Ratchet\RFC6455\Handshake\ServerNegotiator(new \Ratchet\RFC6455\Handshake\RequestVerifier, PermessageDeflateOptions::permessageDeflateSupported());
 
 $uException = new \UnderflowException;
 
 
-$socket->on('connection', static function (React\Socket\ConnectionInterface $connection) use ($negotiator, $closeFrameChecker, $uException, $socket): void {
+$socket->on('connection', function (React\Socket\ConnectionInterface $connection) use ($negotiator, $closeFrameChecker, $uException, $socket) {
     $headerComplete = false;
     $buffer = '';
     $parser = null;
-    $connection->on('data', static function ($data) use ($connection, &$parser, &$headerComplete, &$buffer, $negotiator, $closeFrameChecker, $uException, $socket): void {
+    $connection->on('data', function ($data) use ($connection, &$parser, &$headerComplete, &$buffer, $negotiator, $closeFrameChecker, $uException, $socket) {
         if ($headerComplete) {
             $parser->onData($data);
             return;
@@ -67,10 +58,10 @@ $socket->on('connection', static function (React\Socket\ConnectionInterface $con
         // we support any valid permessage deflate
         $deflateOptions = PermessageDeflateOptions::fromRequestOrResponse($psrRequest)[0];
 
-        $parser = new MessageBuffer($closeFrameChecker,
-            static function (MessageInterface $message, MessageBuffer $messageBuffer): void {
+        $parser = new \Ratchet\RFC6455\Messaging\MessageBuffer($closeFrameChecker,
+            function (MessageInterface $message, MessageBuffer $messageBuffer) {
                 $messageBuffer->sendMessage($message->getPayload(), true, $message->isBinary());
-            }, static function (FrameInterface $frame) use ($connection, &$parser): void {
+            }, function (FrameInterface $frame) use ($connection, &$parser) {
                 switch ($frame->getOpCode()) {
                     case Frame::OP_CLOSE:
                         $connection->end($frame->getContents());
@@ -79,7 +70,9 @@ $socket->on('connection', static function (React\Socket\ConnectionInterface $con
                         $connection->write($parser->newFrame($frame->getPayload(), true, Frame::OP_PONG)->getContents());
                         break;
                 }
-            }, true, static fn (): \Exception => $uException,
+            }, true, function () use ($uException) {
+                return $uException;
+            },
             null,
             null,
            [$connection, 'write'],

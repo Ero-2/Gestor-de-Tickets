@@ -51,7 +51,7 @@
     </div>
   </div>
 
-  <
+  
   <script>
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -59,8 +59,6 @@
       const usuario = document.getElementById('usuario').value.trim();
       const clave = document.getElementById('clave').value.trim();
       const mensaje = document.getElementById('mensaje');
-      const apiKeyInfo = document.getElementById('apiKeyInfo');
-      const apiKeySpan = document.getElementById('apiKey');
 
       mensaje.textContent = '';
       mensaje.classList.remove('text-danger', 'text-success');
@@ -81,17 +79,9 @@
           return;
         }
 
-        // Mostrar mensaje de éxito
         mensaje.textContent = 'Login exitoso. Redirigiendo...';
         mensaje.classList.add('text-success');
 
-        // Opcional: Mostrar la API Key generada
-        if (data.api_key) {
-          apiKeySpan.textContent = data.api_key;
-          apiKeyInfo.style.display = 'block';
-        }
-
-        // Redirigir después de 1.5 segundos
         setTimeout(() => {
           window.location.href = '/GestionDeTickets/inicio.php';
         }, 1500);

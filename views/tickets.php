@@ -115,6 +115,10 @@ let filtrosActuales = {
 document.addEventListener('DOMContentLoaded', function() {
     cargarOpcionesDepartamento();
     loadTickets();
+     
+    let ws = null;
+    let reconnectInterval = 3000;
+    let isConneced = false;  
 
     // Eventos para filtros
     const btnAplicar = document.getElementById('btnAplicarFiltros');
@@ -360,4 +364,105 @@ function sendMessage() {
         alert('Error al enviar el mensaje.');
     });
 }
+
+function connectWebSocket() {
+    try {
+        // Usar ws://localhost:8080 si estás en local
+        ws = new WebSocket('ws://localhost:8080');
+        
+        ws.onopen = function(event) {
+            console.log('✅ Conectado al WebSocket');
+            isConnected = true;
+            
+            // Registrar usuario
+            const userId = <?php echo json_encode($_SESSION['user']['IdUsuario']); ?>;
+            ws.send(JSON.stringify({
+                type: 'register',
+                user_id: userId
+            }));
+            
+            showNotification('Conectado al sistema de notificaciones', null, 'success');
+        };
+
+        ws.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'notification') {
+                    showNotification(data.message, data.ticket_id);
+                    // Recargar tickets automáticamente
+                    loadTickets();
+                }
+            } catch (e) {
+                console.error('Error al procesar mensaje:', e);
+            }
+        };
+
+        ws.onclose = function(event) {
+            if (isConnected) {
+                console.log('❌ WebSocket cerrado. Reconectando en ' + (reconnectInterval/1000) + ' segundos...');
+                showNotification('Conexión perdida. Reconectando...', null, 'warning');
+            }
+            isConnected = false;
+            setTimeout(connectWebSocket, reconnectInterval);
+        };
+
+        ws.onerror = function(error) {
+            console.error('❌ Error en WebSocket:', error);
+            showNotification('Error en la conexión de notificaciones', null, 'danger');
+        };
+
+    } catch (e) {
+        console.error('❌ Error al conectar WebSocket:', e);
+        setTimeout(connectWebSocket, reconnectInterval);
+    }
+}
+
+// Mostrar notificación al usuario
+function showNotification(message, ticketId = null, type = 'info') {
+    // Crear contenedor de notificaciones si no existe
+    let container = document.getElementById('notifications-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'notifications-container';
+        container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999;';
+        document.body.appendChild(container);
+    }
+
+    // Crear notificación
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show`;
+    notification.style.cssText = 'min-width: 300px; margin-bottom: 10px; animation: slideInRight 0.3s;';
+    notification.innerHTML = `
+        <strong>${type === 'success' ? '✅' : type === 'warning' ? '⚠️' : type === 'danger' ? '❌' : '🔔'} Notificación</strong><br>
+        ${message}
+        ${ticketId ? `<br><small>Ticket #${ticketId}</small>` : ''}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    container.appendChild(notification);
+    
+    // Auto cerrar después de 5 segundos
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Enviar notificación (para pruebas)
+function sendTestNotification() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            type: 'notification',
+            target_user_id: <?php echo json_encode($_SESSION['user']['IdUsuario']); ?>,
+            message: 'Notificación de prueba'
+        }));
+    }
+}
+
+// Iniciar conexión WebSocket cuando se carga la página
+document.addEventListener('DOMContentLoaded', function() {
+    connectWebSocket();
+    // ... resto de tu código existente
+});
 </script>

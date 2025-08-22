@@ -1,5 +1,6 @@
 <?php   
 session_start();
+require_once 'send_notification.php';
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
@@ -88,5 +89,7 @@ switch ($method) {
         echo json_encode(['error' => 'Método no permitido']);
         break;
 }
+
+$otherUserId = getOther 
 ?>
 

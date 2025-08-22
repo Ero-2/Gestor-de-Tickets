@@ -14,11 +14,11 @@ class RequestVerifierTest extends TestCase {
      */
     protected $_v;
 
-    protected function setUp(): void {
+    public function setUp() {
         $this->_v = new RequestVerifier();
     }
 
-    public static function methodProvider(): array {
+    public static function methodProvider() {
         return array(
             array(true,  'GET'),
             array(true,  'get'),
@@ -32,11 +32,11 @@ class RequestVerifierTest extends TestCase {
     /**
      * @dataProvider methodProvider
      */
-    public function testMethodMustBeGet(bool $result, string $in): void {
+    public function testMethodMustBeGet($result, $in) {
         $this->assertEquals($result, $this->_v->verifyMethod($in));
     }
 
-    public static function httpVersionProvider(): array {
+    public static function httpVersionProvider() {
         return array(
             array(true,  1.1),
             array(true,  '1.1'),
@@ -56,11 +56,11 @@ class RequestVerifierTest extends TestCase {
     /**
      * @dataProvider httpVersionProvider
      */
-    public function testHttpVersionIsAtLeast1Point1(bool $expected, $in): void {
+    public function testHttpVersionIsAtLeast1Point1($expected, $in) {
         $this->assertEquals($expected, $this->_v->verifyHTTPVersion($in));
     }
 
-    public static function uRIProvider(): array {
+    public static function uRIProvider() {
         return array(
             array(true, '/chat'),
             array(true, '/hello/world?key=val'),
@@ -74,11 +74,11 @@ class RequestVerifierTest extends TestCase {
     /**
      * @dataProvider URIProvider
      */
-    public function testRequestUri(bool $expected, string $in): void {
+    public function testRequestUri($expected, $in) {
         $this->assertEquals($expected, $this->_v->verifyRequestURI($in));
     }
 
-    public static function hostProvider(): array {
+    public static function hostProvider() {
         return array(
             array(true, ['server.example.com']),
             array(false, [])
@@ -88,11 +88,11 @@ class RequestVerifierTest extends TestCase {
     /**
      * @dataProvider HostProvider
      */
-    public function testVerifyHostIsSet(bool $expected, array $in): void {
+    public function testVerifyHostIsSet($expected, $in) {
         $this->assertEquals($expected, $this->_v->verifyHost($in));
     }
 
-    public static function upgradeProvider(): array {
+    public static function upgradeProvider() {
         return array(
             array(true,  ['websocket']),
             array(true,  ['Websocket']),
@@ -105,11 +105,11 @@ class RequestVerifierTest extends TestCase {
     /**
      * @dataProvider upgradeProvider
      */
-    public function testVerifyUpgradeIsWebSocket(bool $expected, array $val): void {
+    public function testVerifyUpgradeIsWebSocket($expected, $val) {
         $this->assertEquals($expected, $this->_v->verifyUpgradeRequest($val));
     }
 
-    public static function connectionProvider(): array {
+    public static function connectionProvider() {
         return array(
             array(true,  ['Upgrade']),
             array(true,  ['upgrade']),
@@ -129,11 +129,11 @@ class RequestVerifierTest extends TestCase {
     /**
      * @dataProvider connectionProvider
      */
-    public function testConnectionHeaderVerification(bool $expected, array $val): void {
+    public function testConnectionHeaderVerification($expected, $val) {
         $this->assertEquals($expected, $this->_v->verifyConnection($val));
     }
 
-    public static function keyProvider(): array {
+    public static function keyProvider() {
         return array(
             array(true,  ['hkfa1L7uwN6DCo4IS3iWAw==']),
             array(true,  ['765vVoQpKSGJwPzJIMM2GA==']),
@@ -154,11 +154,11 @@ class RequestVerifierTest extends TestCase {
     /**
      * @dataProvider keyProvider
      */
-    public function testKeyIsBase64Encoded16BitNonce(bool $expected, array $val): void {
+    public function testKeyIsBase64Encoded16BitNonce($expected, $val) {
         $this->assertEquals($expected, $this->_v->verifyKey($val));
     }
 
-    public static function versionProvider(): array {
+    public static function versionProvider() {
         return array(
             array(true,  [13]),
             array(true,  ['13']),
@@ -174,7 +174,7 @@ class RequestVerifierTest extends TestCase {
     /**
      * @dataProvider versionProvider
      */
-    public function testVersionEquals13(bool $expected, array $in): void {
+    public function testVersionEquals13($expected, $in) {
         $this->assertEquals($expected, $this->_v->verifyVersion($in));
     }
 }

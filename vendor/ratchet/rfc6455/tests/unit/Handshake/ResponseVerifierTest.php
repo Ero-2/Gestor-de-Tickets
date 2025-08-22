@@ -14,11 +14,11 @@ class ResponseVerifierTest extends TestCase {
      */
     protected $_v;
 
-    protected function setUp(): void {
+    public function setUp() {
         $this->_v = new ResponseVerifier;
     }
 
-    public static function subProtocolsProvider(): array {
+    public static function subProtocolsProvider() {
         return [
             [true,  ['a'], ['a']]
           , [true,  ['c', 'd', 'a'], ['a']]
@@ -33,7 +33,7 @@ class ResponseVerifierTest extends TestCase {
     /**
      * @dataProvider subProtocolsProvider
      */
-    public function testVerifySubProtocol(bool $expected, array $request, array $response): void {
+    public function testVerifySubProtocol($expected, $request, $response) {
         $this->assertEquals($expected, $this->_v->verifySubProtocol($request, $response));
     }
 }

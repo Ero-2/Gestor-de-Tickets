@@ -4,19 +4,21 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit20fad51902f91e7fd3039e016a6556b5
+class ComposerStaticInit21cffe364975ee383887d163387029c9
 {
     public static $files = array (
         'ad155f8f1cf0d418fe49e248db8c661b' => __DIR__ . '/..' . '/react/promise/src/functions_include.php',
         '7b11c4dc42b3b3023073cb14e519683c' => __DIR__ . '/..' . '/ralouphie/getallheaders/src/getallheaders.php',
-        'a4a119a56e50fbb293281d9a48007e0e' => __DIR__ . '/..' . '/symfony/polyfill-php80/bootstrap.php',
-        '3be16222a6efa6dd226a219eaaff823b' => __DIR__ . '/..' . '/ratchet/pawl/src/functions_include.php',
+        '6e3fae29631ef280660b3cdad06f25a8' => __DIR__ . '/..' . '/symfony/deprecation-contracts/function.php',
+        '0e6d7bf4a5811bfa5cf40c5ccd6fae6a' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/bootstrap.php',
     );
 
     public static $prefixLengthsPsr4 = array (
         'S' => 
         array (
-            'Symfony\\Polyfill\\Php80\\' => 23,
+            'Symfony\\Polyfill\\Mbstring\\' => 26,
+            'Symfony\\Component\\Routing\\' => 26,
+            'Symfony\\Component\\HttpFoundation\\' => 33,
         ),
         'R' => 
         array (
@@ -27,7 +29,7 @@ class ComposerStaticInit20fad51902f91e7fd3039e016a6556b5
             'React\\Dns\\' => 10,
             'React\\Cache\\' => 12,
             'Ratchet\\RFC6455\\' => 16,
-            'Ratchet\\Client\\' => 15,
+            'Ratchet\\' => 8,
         ),
         'P' => 
         array (
@@ -48,9 +50,17 @@ class ComposerStaticInit20fad51902f91e7fd3039e016a6556b5
     );
 
     public static $prefixDirsPsr4 = array (
-        'Symfony\\Polyfill\\Php80\\' => 
+        'Symfony\\Polyfill\\Mbstring\\' => 
         array (
-            0 => __DIR__ . '/..' . '/symfony/polyfill-php80',
+            0 => __DIR__ . '/..' . '/symfony/polyfill-mbstring',
+        ),
+        'Symfony\\Component\\Routing\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/symfony/routing',
+        ),
+        'Symfony\\Component\\HttpFoundation\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/symfony/http-foundation',
         ),
         'React\\Stream\\' => 
         array (
@@ -80,9 +90,9 @@ class ComposerStaticInit20fad51902f91e7fd3039e016a6556b5
         array (
             0 => __DIR__ . '/..' . '/ratchet/rfc6455/src',
         ),
-        'Ratchet\\Client\\' => 
+        'Ratchet\\' => 
         array (
-            0 => __DIR__ . '/..' . '/ratchet/pawl/src',
+            0 => __DIR__ . '/..' . '/cboden/ratchet/src/Ratchet',
         ),
         'Psr\\Http\\Message\\' => 
         array (
@@ -104,20 +114,15 @@ class ComposerStaticInit20fad51902f91e7fd3039e016a6556b5
     );
 
     public static $classMap = array (
-        'Attribute' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/Attribute.php',
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
-        'PhpToken' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/PhpToken.php',
-        'Stringable' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/Stringable.php',
-        'UnhandledMatchError' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/UnhandledMatchError.php',
-        'ValueError' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/ValueError.php',
     );
 
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit20fad51902f91e7fd3039e016a6556b5::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit20fad51902f91e7fd3039e016a6556b5::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInit20fad51902f91e7fd3039e016a6556b5::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit21cffe364975ee383887d163387029c9::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit21cffe364975ee383887d163387029c9::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInit21cffe364975ee383887d163387029c9::$classMap;
 
         }, null, ClassLoader::class);
     }
