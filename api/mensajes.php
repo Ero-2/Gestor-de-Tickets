@@ -26,6 +26,29 @@ if (!isset($_SESSION['user'])) {
     exit;
 }
 
+// Función para obtener el otro usuario en el chat
+function getOtherUserInTicket($pdo, $ticketId, $currentUserId) {
+    try {
+        // Obtener el creador del ticket
+        $stmt = $pdo->prepare('SELECT "IdUsuarioCreador" FROM "Tickets" WHERE "IdTickets" = :ticket_id');
+        $stmt->execute(['ticket_id' => $ticketId]);
+        $ticket = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($ticket) {
+            // Si el actual es el creador, devolver null (o puedes devolver un admin)
+            if ($ticket['IdUsuarioCreador'] == $currentUserId) {
+                // Aquí podrías devolver el ID del administrador asignado
+                return 1; // Ejemplo: admin con ID 1
+            } else {
+                return $ticket['IdUsuarioCreador'];
+            }
+        }
+        return 1; // Por defecto, admin
+    } catch (Exception $e) {
+        return 1;
+    }
+}
+
 switch ($method) {
     case 'GET':
         // Obtener mensajes de un ticket específico
@@ -76,6 +99,24 @@ switch ($method) {
                 'id_usuario' => $id_usuario,
                 'mensaje' => $mensaje
             ]);
+            
+            //  notification: Enviar notificación al otro usuario
+            $otherUserId = getOtherUserInTicket($pdo, $id_ticket, $id_usuario);
+            if ($otherUserId && $otherUserId != $id_usuario) {
+                $ticketTitle = "";
+                // Obtener título del ticket
+                $ticketStmt = $pdo->prepare('SELECT "Titulo" FROM "Tickets" WHERE "IdTickets" = :ticket_id');
+                $ticketStmt->execute(['ticket_id' => $id_ticket]);
+                $ticket = $ticketStmt->fetch(PDO::FETCH_ASSOC);
+                $ticketTitle = $ticket ? $ticket['Titulo'] : "ticket #$id_ticket";
+                
+                sendWebSocketNotification(
+                    $otherUserId, 
+                    "Nuevo mensaje de {$_SESSION['user']['Usuario']} en: $ticketTitle", 
+                    $id_ticket
+                );
+            }
+            
             echo json_encode(['success' => true, 'message' => 'Mensaje enviado']);
         } catch (PDOException $e) {
             http_response_code(500);
@@ -83,13 +124,9 @@ switch ($method) {
         }
         break;
 
-    // Puedes agregar casos para PUT (editar) y DELETE (eliminar) mensajes si lo deseas
     default:
         http_response_code(405);
         echo json_encode(['error' => 'Método no permitido']);
         break;
 }
-
-$otherUserId = getOther 
 ?>
-

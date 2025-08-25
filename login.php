@@ -43,6 +43,10 @@
           <a href="registro.php">¿No tienes cuenta? Regístrate aquí</a>
         </div>
 
+        <div class="text-center mt-3">
+          <a href="recuperar.php">Recupera tu contraseña</a>
+        </div>
+
         <!-- Mostrar API Key después del login (opcional) -->
         <div id="apiKeyInfo" class="mt-3 text-center" style="display: none;">
           <small>Tu API Key: <span id="apiKey" class="text-muted"></span></small>
