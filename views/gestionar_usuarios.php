@@ -1,8 +1,33 @@
-
 <?php
-
 $page_title = 'Gestión de Usuarios';
 ?>
+
+<!-- Controles de Filtro -->
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label for="filtroDepartamento" class="form-label">Departamento:</label>
+        <select class="form-select" id="filtroDepartamento">
+            <option value="">Todos los Departamentos</option>
+            <!-- Opciones cargadas dinámicamente -->
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label for="filtroTipo" class="form-label">Tipo de Usuario:</label>
+        <select class="form-select" id="filtroTipo">
+            <option value="">Todos los Tipos</option>
+            <option value="1">Administrador</option>
+            <option value="2">Usuario</option>
+        </select>
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-outline-secondary me-2" type="button" id="btnAplicarFiltros">
+            <i class="bi bi-funnel"></i> Aplicar
+        </button>
+        <button class="btn btn-outline-secondary" type="button" id="btnLimpiarFiltros">
+            <i class="bi bi-x-circle"></i> Limpiar
+        </button>
+    </div>
+</div>
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -26,7 +51,6 @@ $page_title = 'Gestión de Usuarios';
                         </tr>
                     </thead>
                     <tbody id="usuariosBody">
-                        <!-- Los datos se cargarán aquí mediante AJAX -->
                         <tr>
                             <td colspan="8" class="text-center">
                                 <div class="spinner-border" role="status">
@@ -50,7 +74,6 @@ $page_title = 'Gestión de Usuarios';
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body" id="modalEditarUsuarioBody">
-        <!-- El contenido del formulario se cargará aquí -->
         <div class="text-center">
             <div class="spinner-border" role="status">
                 <span class="visually-hidden">Cargando...</span>
@@ -62,12 +85,72 @@ $page_title = 'Gestión de Usuarios';
 </div>
 
 <script>
+// Estado de los filtros
+let filtrosActuales = {
+    departamento_id: '',
+    tipo_usuario: ''
+};
+
 document.addEventListener('DOMContentLoaded', function() {
+    cargarOpcionesDepartamento();
     loadUsuarios();
+
+    // Eventos de botones
+    document.getElementById('btnAplicarFiltros')?.addEventListener('click', aplicarFiltros);
+    document.getElementById('btnLimpiarFiltros')?.addEventListener('click', limpiarFiltros);
 });
 
+// Cargar opciones de departamentos
+function cargarOpcionesDepartamento() {
+    fetch('api/obtener.php')
+        .then(r => r.json())
+        .then(data => {
+            const select = document.getElementById('filtroDepartamento');
+            if (data.success && Array.isArray(data.departamentos)) {
+                select.innerHTML = '<option value="">Todos los Departamentos</option>';
+                data.departamentos.forEach(dep => {
+                    const opt = document.createElement('option');
+                    opt.value = dep.IdDepartamentos;
+                    opt.textContent = dep.nombre;
+                    select.appendChild(opt);
+                });
+            }
+        })
+        .catch(err => console.error('Error al cargar departamentos:', err));
+}
+
+// Aplicar filtros (independientes)
+function aplicarFiltros() {
+    const departamento = document.getElementById('filtroDepartamento').value;
+    const tipo = document.getElementById('filtroTipo').value;
+
+    filtrosActuales.departamento_id = departamento || '';
+    filtrosActuales.tipo_usuario = tipo || '';
+
+    loadUsuarios(); // Recargar con filtros actuales
+}
+
+// Limpiar filtros
+function limpiarFiltros() {
+    document.getElementById('filtroDepartamento').value = '';
+    document.getElementById('filtroTipo').value = '';
+    filtrosActuales.departamento_id = '';
+    filtrosActuales.tipo_usuario = '';
+    loadUsuarios();
+}
+
+// Cargar usuarios con filtros aplicados
 function loadUsuarios() {
-    fetch('api/usuarios.php')
+    const url = new URL('api/usuarios.php', window.location.origin + window.location.pathname);
+
+    // Solo añadir parámetros si tienen valor
+    Object.entries(filtrosActuales).forEach(([key, value]) => {
+        if (value !== '') {
+            url.searchParams.append(key, value);
+        }
+    });
+
+    fetch(url)
         .then(response => response.json())
         .then(data => {
             const tbody = document.getElementById('usuariosBody');
@@ -76,20 +159,18 @@ function loadUsuarios() {
                 return;
             }
             if (data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center">No hay usuarios registrados.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center">No hay usuarios que coincidan con los filtros.</td></tr>`;
                 return;
             }
 
-            tbody.innerHTML = data.map((usuario, index) => {
-                // Opcional: Generar un número secuencial para mostrar (sin cambiar el ID real)
-                // const numeroSecuencial = index + 1; 
+            tbody.innerHTML = data.map(usuario => {
+                const tipoBadge = usuario.IdTipoDeUsuario == 1 
+                    ? '<span class="badge bg-danger">Admin</span>' 
+                    : '<span class="badge bg-primary">Usuario</span>';
                 
-                const tipoBadge = usuario.IdTipoDeUsuario == 1 ? 
-                    '<span class="badge bg-danger">Admin</span>' : 
-                    '<span class="badge bg-primary">Usuario</span>';
-                
-                return `<tr data-id-usuario="${usuario.IdUsuario}">
-                    <td>${usuario.IdUsuario}</td> <!-- O usa 'numeroSecuencial' si prefieres mostrar una secuencia visual -->
+                return `
+                <tr data-id-usuario="${usuario.IdUsuario}">
+                    <td>${usuario.IdUsuario}</td>
                     <td>${usuario.Usuario}</td>
                     <td>${usuario.nombre}</td>
                     <td>${usuario.Email || 'N/A'}</td>
@@ -110,11 +191,11 @@ function loadUsuarios() {
         .catch(error => {
             console.error('Error al cargar usuarios:', error);
             document.getElementById('usuariosBody').innerHTML = 
-                `<tr><td colspan="8" class="text-center text-danger">Error al cargar los usuarios. Ver consola.</td></tr>`;
+                `<tr><td colspan="8" class="text-center text-danger">Error al cargar los usuarios.</td></tr>`;
         });
 }
 
-// Manejar el envío del formulario de creación
+// Manejar creación de usuario (tu código original)
 document.getElementById('formCrearUsuario').addEventListener('submit', function(e) {
     e.preventDefault();
     
@@ -132,40 +213,28 @@ document.getElementById('formCrearUsuario').addEventListener('submit', function(
 
     fetch('api/usuarios.php', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            usuario: usuario,
-            nombre: nombre,
-            email: email,
-            contrasena: contrasena,
-            puesto: puesto,
-            id_tipo_usuario: id_tipo_usuario
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuario, nombre, email, contrasena, puesto, id_tipo_usuario })
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
         if (data.success) {
             alert(data.message);
-            // Cerrar el modal
             bootstrap.Modal.getInstance(document.getElementById('modalCrearUsuario')).hide();
-            // Limpiar el formulario
             document.getElementById('formCrearUsuario').reset();
-            // Recargar la lista de usuarios
             loadUsuarios();
         } else {
             alert('Error: ' + data.error);
         }
     })
-    .catch(error => {
-        console.error('Error al crear usuario:', error);
-        alert('Error al crear el usuario. Ver consola.');
+    .catch(err => {
+        console.error('Error al crear usuario:', err);
+        alert('Error al crear el usuario.');
     });
 });
 
+// Editar usuario (tu código original)
 function editarUsuario(idUsuario) {
-    // 1. Mostrar el modal vacío con el spinner
     const modalElement = document.getElementById('modalEditarUsuario');
     const modalBody = document.getElementById('modalEditarUsuarioBody');
     const modal = new bootstrap.Modal(modalElement);
@@ -179,45 +248,20 @@ function editarUsuario(idUsuario) {
     `;
     modal.show();
 
-    // 2. Obtener los datos del usuario a editar
-    // Opción A: Si tu api/usuarios.php tiene soporte para ?id=ID
-    // fetch(`api/usuarios.php?id=${idUsuario}`)
-    // Opción B: Obtener todos y filtrar (como en tu código original)
-    fetch('api/usuarios.php') 
-        .then(response => response.json())
+    fetch('api/usuarios.php')
+        .then(r => r.json())
         .then(data => {
-            if (data.error) {
-                throw new Error(data.error);
-            }
-            // Buscar el usuario específico en la lista
             const usuario = data.find(u => u.IdUsuario == idUsuario);
-            if (!usuario) {
-                throw new Error('Usuario no encontrado.');
-            }
-            return usuario;
-        })
-        .then(usuario => {
-            // 3. Obtener la lista de departamentos para el select
-            return fetch('api/obtener.php') // Asumiendo que 'obtener.php' devuelve departamentos
-                .then(response => response.json())
-                .then(departamentosData => {
-    if (departamentosData.error) {
-        console.warn('No se pudieron cargar los departamentos:', departamentosData.error);
-        return { usuario, departamentos: [] };
-    }
-    return { usuario, departamentos: departamentosData.departamentos || [] };
-})
-                .catch(err => {
-                     console.error('Error al cargar departamentos:', err);
-                     // Proceder sin departamentos
-                     return { usuario, departamentos: [] };
-                });
+            if (!usuario) throw new Error('Usuario no encontrado.');
+
+            return fetch('api/obtener.php')
+                .then(r => r.json())
+                .then(d => ({ usuario, departamentos: d.departamentos || [] }))
+                .catch(() => ({ usuario, departamentos: [] }));
         })
         .then(({ usuario, departamentos }) => {
-            // 4. Generar el HTML del formulario dentro del modal
             let optionsDepartamento = '<option value="">-- Seleccionar Departamento --</option>';
             departamentos.forEach(depto => {
-                // Asegúrate de que los nombres de las propiedades coincidan con lo que devuelve tu API
                 const selected = parseInt(usuario.IdDepartamentos) === parseInt(depto.IdDepartamentos) ? 'selected' : '';
                 optionsDepartamento += `<option value="${depto.IdDepartamentos}" ${selected}>${depto.nombre}</option>`;
             });
@@ -239,9 +283,7 @@ function editarUsuario(idUsuario) {
                     </div>
                     <div class="mb-3">
                         <label for="editIdDepartamentos" class="form-label">Departamento</label>
-                        <select class="form-select" id="editIdDepartamentos">
-                            ${optionsDepartamento}
-                        </select>
+                        <select class="form-select" id="editIdDepartamentos">${optionsDepartamento}</select>
                     </div>
                     <div class="mb-3">
                         <label for="editPuesto" class="form-label">Puesto</label>
@@ -260,91 +302,70 @@ function editarUsuario(idUsuario) {
                     </div>
                 </form>
             `;
-            
-            // 5. Añadir el listener al formulario recién creado
+
             document.getElementById('formEditarUsuarioModal').addEventListener('submit', function(e) {
-                 e.preventDefault();
-                 
-                 const id_usuario = document.getElementById('editIdUsuario').value;
-                 const usuario = document.getElementById('editUsuario').value.trim();
-                 const nombre = document.getElementById('editNombre').value.trim();
-                 const email = document.getElementById('editEmail').value.trim();
-                 const id_departamentos = document.getElementById('editIdDepartamentos').value || null; // Puede ser null
-                 const puesto = document.getElementById('editPuesto').value.trim() || null; // Puede ser null
-                 const id_tipo_usuario = parseInt(document.getElementById('editIdTipoUsuario').value);
+                e.preventDefault();
+                const datos = {
+                    id_usuario: document.getElementById('editIdUsuario').value,
+                    usuario: document.getElementById('editUsuario').value.trim(),
+                    nombre: document.getElementById('editNombre').value.trim(),
+                    email: document.getElementById('editEmail').value.trim(),
+                    id_tipo_usuario: parseInt(document.getElementById('editIdTipoUsuario').value)
+                };
 
-                 if (!id_usuario || !usuario || !nombre || !email) {
-                     alert('Por favor, completa todos los campos marcados con *.');
-                     return;
-                 }
+                const id_departamentos = document.getElementById('editIdDepartamentos').value;
+                const puesto = document.getElementById('editPuesto').value.trim();
 
-                 // Preparar datos para enviar, incluyendo campos que pueden ser null
-                 const datosActualizar = {
-                     id_usuario: id_usuario,
-                     usuario: usuario,
-                     nombre: nombre,
-                     email: email,
-                     id_tipo_usuario: id_tipo_usuario
-                 };
-                 // Solo añadir campos al objeto si tienen valor
-                 if (id_departamentos !== null && id_departamentos !== '') datosActualizar.id_departamentos = id_departamentos;
-                 if (puesto !== null && puesto !== '') datosActualizar.puesto = puesto;
+                if (id_departamentos) datos.id_departamentos = id_departamentos;
+                if (puesto) datos.puesto = puesto;
 
-                 fetch('api/usuarios.php', {
-                     method: 'PUT',
-                     headers: {
-                         'Content-Type': 'application/json',
-                     },
-                     body: JSON.stringify(datosActualizar)
-                 })
-                 .then(response => response.json())
-                 .then(data => {
-                     if (data.success) {
-                         alert(data.message);
-                         modal.hide(); // Cerrar el modal
-                         loadUsuarios(); // Recargar la lista
-                     } else {
-                         alert('Error: ' + data.error);
-                     }
-                 })
-                 .catch(error => {
-                     console.error('Error al editar usuario:', error);
-                     alert('Error al editar el usuario. Ver consola.');
-                 });
+                fetch('api/usuarios.php', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        modal.hide();
+                        loadUsuarios();
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error al editar:', err);
+                    alert('Error al actualizar.');
+                });
             });
         })
-        .catch(error => {
-            console.error('Error al cargar datos para editar usuario:', error);
-            modalBody.innerHTML = `<div class="alert alert-danger">Error al cargar datos del usuario: ${error.message}</div>`;
+        .catch(err => {
+            modalBody.innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
         });
 }
 
-
+// Eliminar usuario
 function eliminarUsuario(idUsuario) {
-    if (!confirm(`¿Estás seguro de que quieres eliminar el usuario con ID ${idUsuario}? Esta acción no se puede deshacer.`)) {
-        return;
-    }
+    if (!confirm(`¿Eliminar usuario ID ${idUsuario}?`)) return;
 
     fetch('api/usuarios.php', {
         method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id_usuario: idUsuario })
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
         if (data.success) {
             alert(data.message);
-            // Recargar la lista de usuarios
             loadUsuarios();
         } else {
             alert('Error: ' + data.error);
         }
     })
-    .catch(error => {
-        console.error('Error al eliminar usuario:', error);
-        alert('Error al eliminar el usuario. Ver consola.');
+    .catch(err => {
+        console.error('Error al eliminar:', err);
+        alert('Error al eliminar.');
     });
 }
 </script>

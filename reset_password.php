@@ -12,7 +12,7 @@
     <form id="resetForm">
       <div class="mb-3">
         <label for="password" class="form-label">Nueva contraseña</label>
-        <input type="password" class="form-control" id="password" required>
+        <input type="password" class="form-control" id="password" required minlength="8"> <!-- Agregado minlength para seguridad -->
       </div>
       <button type="submit" class="btn btn-primary w-100">Actualizar contraseña</button>
     </form>
@@ -23,10 +23,22 @@
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get("token");
 
+    if (!token) {
+      const mensaje = document.getElementById('mensaje');
+      mensaje.textContent = "Token no proporcionado. Solicita un nuevo enlace.";
+      mensaje.className = "text-danger";
+    }
+
     document.getElementById('resetForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const password = document.getElementById('password').value.trim();
       const mensaje = document.getElementById('mensaje');
+
+      if (password.length < 8) {
+        mensaje.textContent = "La contraseña debe tener al menos 8 caracteres.";
+        mensaje.className = "text-danger";
+        return;
+      }
 
       try {
         const res = await fetch('/GestionDeTickets/api/auth/reset_password.php', {
@@ -50,6 +62,7 @@
         }, 2000);
 
       } catch (err) {
+        console.error('Error detallado:', err); // Para depuración
         mensaje.textContent = "Error de conexión con el servidor.";
         mensaje.className = "text-danger";
       }

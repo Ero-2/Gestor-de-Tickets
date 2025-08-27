@@ -8,23 +8,22 @@ function sendEmail($to, $subject, $body) {
     $mail = new PHPMailer(true);
 
     try {
-        // ✅ ACTIVAR DEBUGGING COMPLETO (desactívalo en producción con =0)
-        $mail->SMTPDebug = 3; // Nivel máximo de detalle
+        // Desactiva el debugging en pantalla para producción (usa logs en su lugar)
+        $mail->SMTPDebug = 3; // Mantén el nivel, pero redirige la salida
         $mail->Debugoutput = function($str, $level) {
-            error_log("PHPMailer Debug [$level]: $str");
-            echo "DEBUG: $str<br>"; // Mostrar en pantalla también
+            error_log("PHPMailer Debug [$level]: $str"); // Solo logs, sin echo
         };
 
         // Configuración SMTP para Gmail
         $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com';  // Cambiado a Gmail
+        $mail->Host       = 'smtp.gmail.com';
         $mail->SMTPAuth   = true;
-        $mail->Username   = 'erickgtickets@gmail.com';  // Tu correo Gmail
-        $mail->Password   = 'haor fwbo inle hzuv';  // App Password (sin espacios)
+        $mail->Username   = 'erickgtickets@gmail.com';
+        $mail->Password   = 'haor fwbo inle hzuv';
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port       = 587;
         
-        // 🛡️ Opciones SSL para depuración local (activa verificación en producción)
+        // Opciones SSL para depuración local (activa verificación en producción)
         $mail->SMTPOptions = array(
             'ssl' => array(
                 'verify_peer' => false,
@@ -34,7 +33,7 @@ function sendEmail($to, $subject, $body) {
         );
 
         // Remitente y destinatario
-        $mail->setFrom('erickgtickets@gmail.com', 'Soporte Tickets');  // Cambiado a Gmail
+        $mail->setFrom('erickgtickets@gmail.com', 'Soporte Tickets');
         $mail->addAddress($to);
 
         // Contenido
@@ -44,13 +43,10 @@ function sendEmail($to, $subject, $body) {
         $mail->CharSet = 'UTF-8';
 
         $mail->send();
-        echo "✅ CORREO ENVIADO CORRECTAMENTE<br>";
         return true;
         
     } catch (Exception $e) {
-        echo "❌ ERROR COMPLETO: " . $e->getMessage() . "<br>";
-        echo "📧 ERROR DE PHPMAILER: " . $mail->ErrorInfo . "<br>";
-        error_log("Error al enviar correo: " . $mail->ErrorInfo);
+        error_log("Error al enviar correo: " . $mail->ErrorInfo); // Solo log, sin echo
         return false;
     }
 }

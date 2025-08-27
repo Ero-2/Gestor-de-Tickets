@@ -21,9 +21,9 @@ try {
     $pdo = new PDO("pgsql:host=localhost;port=5432;dbname=Tickets", "postgres", "1234");
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // Verificar token
+    // Verificar token (cambiado 'used' a 'usado')
     $stmt = $pdo->prepare('SELECT pr."IdUsuario" FROM "password_resets" pr 
-                           WHERE pr.token = ? AND pr.expires_at > NOW() AND pr.used = false');
+                           WHERE pr.token = ? AND pr.expires_at > NOW() AND pr.usado = false');
     $stmt->execute([$data['token']]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -36,11 +36,11 @@ try {
     $hash = password_hash($data['password'], PASSWORD_BCRYPT);
 
     // Actualizar contraseña
-    $stmt = $pdo->prepare('UPDATE "usuario" SET "Clave" = ? WHERE "IdUsuario" = ?');
+    $stmt = $pdo->prepare('UPDATE "usuario" SET "Contrasena" = ? WHERE "IdUsuario" = ?');
     $stmt->execute([$hash, $idUsuario]);
 
-    // Marcar token como usado
-    $stmt = $pdo->prepare('UPDATE "password_resets" SET used = true WHERE token = ?');
+    // Marcar token como usado (cambiado 'used' a 'usado')
+    $stmt = $pdo->prepare('UPDATE "password_resets" SET usado = true WHERE token = ?');
     $stmt->execute([$data['token']]);
 
     echo json_encode(['success' => true, 'message' => 'Contraseña actualizada correctamente']);
@@ -49,3 +49,4 @@ try {
     http_response_code(500);
     echo json_encode(['error' => $e->getMessage()]);
 }
+?>
