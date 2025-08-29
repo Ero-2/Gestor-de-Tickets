@@ -3,10 +3,10 @@ session_start();
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET');
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Conexión a PostgreSQL
 try {
     $pdo = new PDO("pgsql:host=localhost;port=5432;dbname=Tickets", "postgres", "1234");
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -23,65 +23,75 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 try {
-    // Parámetros de filtro
     $params = [];
     $where_clauses = [];
 
-    // Filtro: Solo tickets resueltos (acción "Resolver" en el historial)
-    $where_clauses[] = 'h."Accion" = \'Resolver\'';
+    // Filtro fijo: solo tickets resueltos
+    $where_clauses[] = '"EstadoTicket" = :estado';
+    $params['estado'] = 'Resuelto';
 
-    // Filtro opcional: Por departamento destino
-    $departamento_id = isset($_GET['departamento_id']) ? trim($_GET['departamento_id']) : null;
-    if ($departamento_id !== null && is_numeric($departamento_id) && $departamento_id > 0) {
-        $where_clauses[] = 't."IdDepartamentoDestino" = :departamento_id';
-        $params['departamento_id'] = (int)$departamento_id;
+    // Filtro por Departamento Destino (opcional)
+    $departamento_id = isset($_GET['departamento_id']) ? intval($_GET['departamento_id']) : null;
+    if ($departamento_id > 0) {
+        $where_clauses[] = '"IdDepartamentoDestino" = :departamento_id';
+        $params['departamento_id'] = $departamento_id;
     }
 
-    // Filtro opcional: Por prioridad
-    $prioridad = isset($_GET['prioridad']) ? strtolower(trim($_GET['prioridad'])) : null;
-    if ($prioridad !== null && in_array($prioridad, ['baja', 'media', 'alta'])) {
-        $where_clauses[] = 't."Prioridad" = :prioridad';
-        $params['prioridad'] = strtoupper($prioridad); // Asumimos que en BD es "Baja", "Media", "Alta"
+    // Filtro por Prioridad (opcional)
+    $prioridad_raw = isset($_GET['prioridad']) ? strtolower(trim($_GET['prioridad'])) : null;
+    $mapPrioridad = [
+        'baja' => 'Baja',
+        'media' => 'Media',
+        'alta' => 'Alta'
+    ];
+    if ($prioridad_raw !== null && isset($mapPrioridad[$prioridad_raw])) {
+        $where_clauses[] = '"Prioridad" = :prioridad';
+        $params['prioridad'] = $mapPrioridad[$prioridad_raw];
     }
+
+    // Paginación
+    $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+    $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 8;
+    $offset = ($page - 1) * $limit;
+
+    // Consulta de conteo total
+    $where_sql = !empty($where_clauses) ? ' WHERE ' . implode(' AND ', $where_clauses) : '';
+    $count_sql = 'SELECT COUNT(*) FROM "Tickets" t' . $where_sql;
+    $stmt_count = $pdo->prepare($count_sql);
+    $stmt_count->execute($params);
+    $total = $stmt_count->fetchColumn();
 
     // Consulta principal
     $sql = '
         SELECT 
-            t."IdTickets",
-            t."Titulo",
-            t."Descripcion",
-            t."Prioridad",
-            t."EstadoTicket",
-            t."FechaCreacion",
-            t."IdDepartamentoDestino",
-            h."FechaAccion" AS "fecha_resolucion",
+            t.*,
             u."nombre" AS "usuario_nombre",
             u."Puesto" AS "usuario_puesto",
             u."FotoPerfil" AS "usuario_foto",
-            resolutor."nombre" AS "resolutor_nombre"
-        FROM "Historial" h
-        JOIN "Tickets" t ON h."IdTicket" = t."IdTickets"
-        JOIN "usuario" u ON t."IdUsuarioCreador" = u."IdUsuario"
-        LEFT JOIN "usuario" resolutor ON h."IdUsuario" = resolutor."IdUsuario"
-        WHERE ' . implode(' AND ', $where_clauses) . '
-        AND h."FechaAccion" = (
-            SELECT MAX(h2."FechaAccion")
-            FROM "Historial" h2
-            WHERE h2."IdTicket" = t."IdTickets"
-            AND h2."Accion" = \'Resolver\'
-        )
-        ORDER BY h."FechaAccion" DESC, t."FechaCreacion" DESC
+            MAX(CASE WHEN h."Accion" = \'Resolver\' THEN h."FechaAccion" END) AS "fecha_resolucion"
+        FROM "Tickets" t
+        LEFT JOIN "usuario" u ON t."IdUsuarioCreador" = u."IdUsuario"
+        LEFT JOIN "Historial" h ON t."IdTickets" = h."IdTicket"
+        ' . $where_sql . '
+        GROUP BY t."IdTickets", u."nombre", u."Puesto", u."FotoPerfil"
+        ORDER BY "fecha_resolucion" DESC
+        LIMIT :limit OFFSET :offset
     ';
 
     $stmt = $pdo->prepare($sql);
+    $params['limit'] = $limit;
+    $params['offset'] = $offset;
     $stmt->execute($params);
-    $resolvedTickets = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $tickets = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Aseguramos que la respuesta sea un array (vacío si no hay resultados)
-    echo json_encode(array_values($resolvedTickets));
+    echo json_encode([
+        'tickets' => $tickets,
+        'total' => $total,
+        'page' => $page,
+        'limit' => $limit
+    ]);
 
 } catch (PDOException $e) {
-    error_log('Error en resueltos.php: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode(['error' => 'Error al obtener los tickets resueltos: ' . $e->getMessage()]);
 }

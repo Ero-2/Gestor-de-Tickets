@@ -31,10 +31,9 @@
     <button type="submit" class="btn btn-primary">Crear Ticket</button>
 </form>
 
-<!-- Scripts específicos de esta página -->
 <script>
 // Cargar departamentos desde la API
-fetch('/GestionDeTickets/api/obtener.php')
+fetch('api/obtener.php')
     .then(response => response.json())
     .then(data => {
         const deptoSelect = document.getElementById('departamento');
@@ -55,11 +54,11 @@ document.getElementById('ticketForm').addEventListener('submit', async (e) => {
         titulo: document.getElementById('titulo').value,
         descripcion: document.getElementById('descripcion').value,
         prioridad: document.getElementById('prioridad').value,
-        id_departamento_destino: document.getElementById('departamento').value,
+        id_departamento_destino: parseInt(document.getElementById('departamento').value),
     };
 
     try {
-        const response = await fetch('/GestionDeTickets/api/tickets.php', {
+        const response = await fetch('api/tickets.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -76,8 +75,14 @@ document.getElementById('ticketForm').addEventListener('submit', async (e) => {
             alert('Error: ' + data.error);
         }
     } catch (error) {
-        alert('Hubo un problema al enviar el ticket.');
-        console.error(error);
+        console.error('Error al enviar el ticket:', error);
+        if (error.message.includes('Failed to fetch')) {
+            alert('Error: No se pudo conectar con el servidor.');
+        } else if (error.message.includes('400')) {
+            alert('Error: Datos inválidos. Verifica los campos.');
+        } else {
+            alert('Hubo un problema al enviar el ticket.');
+        }
     }
 });
 </script>

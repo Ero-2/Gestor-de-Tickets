@@ -9,55 +9,67 @@ use Ratchet\Server\IoServer;
 
 class TicketNotification implements MessageComponentInterface {
     protected $clients;
-    protected $users;
+    protected $users; // user_id => connection
 
     public function __construct() {
         $this->clients = new \SplObjectStorage;
         $this->users = [];
-        echo "Servidor de notificaciones iniciado...\n";
+        echo "[INFO] Servidor de notificaciones iniciado...\n";
     }
 
     public function onOpen(ConnectionInterface $conn) {
         $this->clients->attach($conn);
-        echo "Nueva conexión: {$conn->resourceId}\n";
+        echo "[CONEXIÓN] Nueva conexión: {$conn->resourceId}\n";
     }
 
     public function onMessage(ConnectionInterface $from, $msg) {
         $data = json_decode($msg, true);
         
-        if (!$data) {
-            echo "Mensaje inválido recibido\n";
+        if (!$data || !isset($data['type'])) {
+            echo "[ERROR] Mensaje inválido recibido\n";
             return;
         }
 
         switch ($data['type']) {
             case 'register':
-                $this->users[$data['user_id']] = $from;
-                echo "Usuario {$data['user_id']} registrado (conn: {$from->resourceId})\n";
+                $userId = $data['user_id'] ?? null;
+                if ($userId) {
+                    $this->users[$userId] = $from;
+                    echo "[REGISTRO] Usuario $userId registrado (conn: {$from->resourceId})\n";
+                } else {
+                    echo "[ERROR] Registro fallido: user_id faltante\n";
+                }
                 break;
 
             case 'notification':
-                if (isset($this->users[$data['target_user_id']])) {
-                    $target = $this->users[$data['target_user_id']];
-                    $target->send(json_encode([
+                $targetId = $data['target_user_id'] ?? null;
+                if ($targetId && isset($this->users[$targetId])) {
+                    $target = $this->users[$targetId];
+                    $notification = [
                         'type' => 'notification',
                         'message' => $data['message'],
                         'ticket_id' => $data['ticket_id'] ?? null,
                         'timestamp' => date('Y-m-d H:i:s')
-                    ]));
-                    echo "Notificación enviada a usuario {$data['target_user_id']}\n";
+                    ];
+                    $target->send(json_encode($notification));
+                    echo "[NOTIF] Enviada a usuario $targetId\n";
                 } else {
-                    echo "Usuario {$data['target_user_id']} no encontrado\n";
+                    echo "[NOTIF] Usuario $targetId no conectado\n";
                 }
                 break;
 
             case 'broadcast':
+                $payload = $data['payload'] ?? [];
                 foreach ($this->clients as $client) {
                     if ($client !== $from) {
-                        $client->send(json_encode($data['payload']));
+                        $client->send(json_encode($payload));
                     }
                 }
-                echo "Mensaje broadcast enviado\n";
+                echo "[BROADCAST] Enviado a todos los clientes\n";
+                break;
+
+            default:
+                echo "[ERROR] Tipo desconocido: {$data['type']}\n";
                 break;
         }
     }
@@ -65,38 +77,36 @@ class TicketNotification implements MessageComponentInterface {
     public function onClose(ConnectionInterface $conn) {
         $this->clients->detach($conn);
         
-        // Eliminar usuario del registro
+        // Eliminar de users si existe
         foreach ($this->users as $user_id => $connection) {
             if ($connection === $conn) {
                 unset($this->users[$user_id]);
-                echo "Usuario {$user_id} desconectado\n";
+                echo "[DESCONEXIÓN] Usuario $user_id desconectado\n";
                 break;
             }
         }
         
-        echo "Conexión {$conn->resourceId} cerrada\n";
+        echo "[CONEXIÓN] {$conn->resourceId} cerrada\n";
     }
 
     public function onError(ConnectionInterface $conn, \Exception $e) {
-        echo "Error: {$e->getMessage()}\n";
+        echo "[ERROR] {$e->getMessage()}\n";
         $conn->close();
     }
 }
 
-// Iniciar servidor en puerto 8080
+// Iniciar servidor
 try {
     $server = IoServer::factory(
         new HttpServer(
-            new WsServer(
-                new TicketNotification()
-            )
+            new WsServer(new TicketNotification())
         ),
         8080
     );
 
-    echo "Servidor WebSocket iniciado en ws://localhost:8080\n";
+    echo "[SERVIDOR] WebSocket iniciado en ws://localhost:8080\n";
     $server->run();
 } catch (Exception $e) {
-    echo "Error al iniciar servidor: " . $e->getMessage() . "\n";
+    echo "[FATAL] Error al iniciar servidor: " . $e->getMessage() . "\n";
 }
 ?>

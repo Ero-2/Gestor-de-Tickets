@@ -76,6 +76,10 @@ $page_title = $is_admin ? 'Todos los Tickets' : 'Mis Tickets';
                     </tbody>
                 </table>
             </div>
+            <!-- Paginación -->
+            <nav aria-label="Paginación de tickets" class="mt-3">
+                <ul class="pagination justify-content-center" id="ticketsPagination"></ul>
+            </nav>
         </div>
     </div>
     <!-- Modal para el Chat -->
@@ -111,6 +115,8 @@ let filtrosActuales = {
     departamento_id: '',
     prioridad: ''
 };
+let currentPage = 1;
+const itemsPerPage = 8;
 
 document.addEventListener('DOMContentLoaded', function() {
     cargarOpcionesDepartamento();
@@ -129,47 +135,44 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // --- Cargar tickets desde API ---
-function loadTickets(filtros = {}) {
-    const filtrosFinales = { ...filtrosActuales, ...filtros };
+function loadTickets(page = currentPage) {
+    currentPage = page;
     const url = new URL('api/tickets.php', window.location.origin + window.location.pathname);
     
-    if (filtrosFinales.departamento_id) url.searchParams.append('departamento_id', filtrosFinales.departamento_id);
-    if (filtrosFinales.prioridad) url.searchParams.append('prioridad', filtrosFinales.prioridad);
+    if (filtrosActuales.departamento_id) url.searchParams.append('departamento_id', filtrosActuales.departamento_id);
+    if (filtrosActuales.prioridad) url.searchParams.append('prioridad', filtrosActuales.prioridad);
+    url.searchParams.append('page', currentPage);
+    url.searchParams.append('limit', itemsPerPage);
+
+    const isAdmin = <?php echo json_encode($is_admin); ?>;
+    if (!isAdmin) {
+        const userId = <?php echo json_encode($_SESSION['user']['IdUsuario']); ?>;
+        url.searchParams.append('user_id', userId);
+    }
 
     fetch(url)
         .then(r => r.json())
         .then(responseData => {
             const tbody = document.getElementById('ticketsBody');
+            const pagination = document.getElementById('ticketsPagination');
             const isAdmin = <?php echo json_encode($is_admin); ?>;
 
             if (responseData.error) {
                 tbody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 5}" class="text-center text-danger">${responseData.error}</td></tr>`;
+                pagination.innerHTML = '';
                 return;
             }
 
             const data = responseData.tickets || [];
 
-            // Separar en espera y resueltos
-            const ticketsEnEspera = data.filter(t => t.EstadoTicket !== 'Resuelto');
-            const ticketsResueltos = data.filter(t => t.EstadoTicket === 'Resuelto');
-
-            // Guardar resueltos para otra página
-            localStorage.setItem('tickets_resueltos', JSON.stringify(ticketsResueltos));
-
-            if (ticketsEnEspera.length === 0) {
+            if (data.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 5}" class="text-center">No hay tickets disponibles</td></tr>`;
+                pagination.innerHTML = '';
                 if (responseData.counts && isAdmin) updateAdminCounts(responseData.counts);
                 return;
             }
 
-            // Si no es admin, mostrar solo tickets creados por el usuario
-            let filteredTickets = ticketsEnEspera;
-            if (!isAdmin) {
-                const userId = <?php echo json_encode($_SESSION['user']['IdUsuario']); ?>;
-                filteredTickets = filteredTickets.filter(ticket => ticket.IdUsuarioCreador === userId);
-            }
-
-            tbody.innerHTML = filteredTickets.map(ticket => {
+            tbody.innerHTML = data.map(ticket => {
                 const priorityClass = getPriorityClass(ticket.Prioridad);
                 const priorityBadge = `<span class="badge ${priorityClass}">${ticket.Prioridad}</span>`;
                 let row = '<tr>';
@@ -196,11 +199,24 @@ function loadTickets(filtros = {}) {
                 return row;
             }).join('');
 
+            // Generar paginación
+            const totalPages = Math.ceil(responseData.total / itemsPerPage);
+            let paginationHtml = '';
+            for (let i = 1; i <= totalPages; i++) {
+                paginationHtml += `
+                    <li class="page-item ${i === currentPage ? 'active' : ''}">
+                        <a class="page-link" href="#" onclick="loadTickets(${i}); return false;">${i}</a>
+                    </li>
+                `;
+            }
+            pagination.innerHTML = paginationHtml;
+
             if (responseData.counts && isAdmin) updateAdminCounts(responseData.counts);
         })
         .catch(err => {
             console.error('Error al cargar tickets:', err);
             document.getElementById('ticketsBody').innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error al cargar los tickets</td></tr>`;
+            document.getElementById('ticketsPagination').innerHTML = '';
         });
 }
 
@@ -228,7 +244,8 @@ function aplicarFiltros() {
     const prioridadSelect = document.getElementById('filtroPrioridad');
     filtrosActuales.departamento_id = departamentoSelect.value;
     filtrosActuales.prioridad = prioridadSelect.value;
-    loadTickets(filtrosActuales);
+    currentPage = 1;
+    loadTickets();
 }
 
 function limpiarFiltros() {
@@ -236,6 +253,7 @@ function limpiarFiltros() {
     document.getElementById('filtroPrioridad').value = '';
     filtrosActuales.departamento_id = '';
     filtrosActuales.prioridad = '';
+    currentPage = 1;
     loadTickets();
 }
 

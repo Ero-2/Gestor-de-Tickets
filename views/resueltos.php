@@ -46,14 +46,14 @@ if (!isset($_SESSION['user'])) {
                     <!-- Filtros -->
                     <div class="row mb-4">
                         <div class="col-md-4">
-                            <label for="filtroDepartamento" class="form-label">Departamento:</label>
-                            <select class="form-select" id="filtroDepartamento">
+                            <label for="filtroDepartamentoResueltos" class="form-label">Departamento:</label>
+                            <select class="form-select" id="filtroDepartamentoResueltos">
                                 <option value="">Todos los Departamentos</option>
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label for="filtroPrioridad" class="form-label">Prioridad:</label>
-                            <select class="form-select" id="filtroPrioridad">
+                            <label for="filtroPrioridadResueltos" class="form-label">Prioridad:</label>
+                            <select class="form-select" id="filtroPrioridadResueltos">
                                 <option value="">Todas las Prioridades</option>
                                 <option value="baja">Baja</option>
                                 <option value="media">Media</option>
@@ -61,10 +61,10 @@ if (!isset($_SESSION['user'])) {
                             </select>
                         </div>
                         <div class="col-md-3 d-flex align-items-end gap-2">
-                            <button class="btn btn-outline-primary" type="button" id="btnAplicarFiltros">
+                            <button class="btn btn-outline-primary" type="button" id="btnAplicarFiltrosResueltos">
                                 <i class="bi bi-funnel"></i> Aplicar
                             </button>
-                            <button class="btn btn-outline-secondary" type="button" id="btnLimpiarFiltros">
+                            <button class="btn btn-outline-secondary" type="button" id="btnLimpiarFiltrosResueltos">
                                 <i class="bi bi-x-circle"></i> Limpiar
                             </button>
                         </div>
@@ -98,6 +98,10 @@ if (!isset($_SESSION['user'])) {
                                     </tbody>
                                 </table>
                             </div>
+                            <!-- Paginación -->
+                            <nav aria-label="Paginación de tickets resueltos" class="mt-3">
+                                <ul class="pagination justify-content-center" id="resolvedPagination"></ul>
+                            </nav>
                         </div>
                     </div>
                 <?php
@@ -111,18 +115,20 @@ if (!isset($_SESSION['user'])) {
 
     <!-- Scripts -->
     <script>
-        // Estado de los filtros
+        // Estado de los filtros y paginación
         let filtrosActuales = {
             departamento_id: '',
             prioridad: ''
         };
+        let currentPage = 1;
+        const itemsPerPage = 8;
 
         // Cargar opciones de departamento
         function cargarOpcionesDepartamento() {
             fetch('api/obtener.php')
                 .then(r => r.json())
                 .then(data => {
-                    const select = document.getElementById('filtroDepartamento');
+                    const select = document.getElementById('filtroDepartamentoResueltos');
                     if (data.success && Array.isArray(data.departamentos)) {
                         select.innerHTML = '<option value="">Todos los Departamentos</option>';
                         data.departamentos.forEach(dep => {
@@ -138,36 +144,40 @@ if (!isset($_SESSION['user'])) {
                 });
         }
 
-        // Aplicar filtros (independientes)
-        function aplicarFiltros() {
-            const departamento = document.getElementById('filtroDepartamento').value.trim();
-            const prioridad = document.getElementById('filtroPrioridad').value.trim();
+        // Aplicar filtros (resetear a página 1)
+        function aplicarFiltrosResueltos() {
+            const departamento = document.getElementById('filtroDepartamentoResueltos').value.trim();
+            const prioridad = document.getElementById('filtroPrioridadResueltos').value.trim();
 
             filtrosActuales.departamento_id = departamento || '';
             filtrosActuales.prioridad = prioridad || '';
 
+            currentPage = 1;
             loadResolvedTickets();
         }
 
-        // Limpiar filtros
-        function limpiarFiltros() {
-            document.getElementById('filtroDepartamento').value = '';
-            document.getElementById('filtroPrioridad').value = '';
+        // Limpiar filtros (resetear a página 1)
+        function limpiarFiltrosResueltos() {
+            document.getElementById('filtroDepartamentoResueltos').value = '';
+            document.getElementById('filtroPrioridadResueltos').value = '';
             filtrosActuales.departamento_id = '';
             filtrosActuales.prioridad = '';
+            currentPage = 1;
             loadResolvedTickets();
         }
 
-        // Cargar tickets resueltos con filtros
-        function loadResolvedTickets() {
+        // Cargar tickets resueltos con filtros y paginación
+        function loadResolvedTickets(page = currentPage) {
+            currentPage = page;
             const url = new URL('api/resueltos.php', window.location.origin + window.location.pathname);
 
-            // Solo añadir parámetros si tienen valor
             Object.entries(filtrosActuales).forEach(([key, value]) => {
                 if (value !== '') {
                     url.searchParams.append(key, value);
                 }
             });
+            url.searchParams.append('page', currentPage);
+            url.searchParams.append('limit', itemsPerPage);
 
             fetch(url)
                 .then(r => {
@@ -176,6 +186,7 @@ if (!isset($_SESSION['user'])) {
                 })
                 .then(data => {
                     const tbody = document.getElementById('resolvedTicketsBody');
+                    const pagination = document.getElementById('resolvedPagination');
 
                     if (data.error) {
                         tbody.innerHTML = `
@@ -184,21 +195,22 @@ if (!isset($_SESSION['user'])) {
                                     <i class="bi bi-exclamation-circle"></i> ${data.error}
                                 </td>
                             </tr>`;
+                        pagination.innerHTML = '';
                         return;
                     }
 
-                    if (data.length === 0) {
+                    if (!data.tickets || data.tickets.length === 0) {
                         tbody.innerHTML = `
                             <tr>
                                 <td colspan="7" class="text-center text-muted">
                                     No hay tickets resueltos con los filtros aplicados.
                                 </td>
                             </tr>`;
+                        pagination.innerHTML = '';
                         return;
                     }
 
-                    // Generar filas
-                    tbody.innerHTML = data.map(ticket => {
+                    tbody.innerHTML = data.tickets.map(ticket => {
                         const priorityClass = getPriorityClass(ticket.Prioridad);
                         const priorityBadge = `<span class="badge ${priorityClass}">${ticket.Prioridad}</span>`;
                         const foto = ticket.usuario_foto 
@@ -224,6 +236,18 @@ if (!isset($_SESSION['user'])) {
                             </tr>
                         `;
                     }).join('');
+
+                    // Generar paginación
+                    const totalPages = Math.ceil(data.total / itemsPerPage);
+                    let paginationHtml = '';
+                    for (let i = 1; i <= totalPages; i++) {
+                        paginationHtml += `
+                            <li class="page-item ${i === currentPage ? 'active' : ''}">
+                                <a class="page-link" href="#" onclick="loadResolvedTickets(${i}); return false;">${i}</a>
+                            </li>
+                        `;
+                    }
+                    pagination.innerHTML = paginationHtml;
                 })
                 .catch(error => {
                     console.error('Error al cargar tickets resueltos:', error);
@@ -233,6 +257,7 @@ if (!isset($_SESSION['user'])) {
                                 <i class="bi bi-exclamation-triangle"></i> Error al cargar los datos.
                             </td>
                         </tr>`;
+                    document.getElementById('resolvedPagination').innerHTML = '';
                 });
         }
 
@@ -264,8 +289,8 @@ if (!isset($_SESSION['user'])) {
                 loadResolvedTickets();
 
                 // Eventos de filtros
-                document.getElementById('btnAplicarFiltros')?.addEventListener('click', aplicarFiltros);
-                document.getElementById('btnLimpiarFiltros')?.addEventListener('click', limpiarFiltros);
+                document.getElementById('btnAplicarFiltrosResueltos')?.addEventListener('click', aplicarFiltrosResueltos);
+                document.getElementById('btnLimpiarFiltrosResueltos')?.addEventListener('click', limpiarFiltrosResueltos);
             }
         });
     </script>
