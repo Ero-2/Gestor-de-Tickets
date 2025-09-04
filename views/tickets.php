@@ -1,5 +1,5 @@
+
 <?php
-// Verificar autenticación
 if (!isset($_SESSION['user'])) {
     header('Location: login.php');
     exit;
@@ -9,13 +9,22 @@ $is_admin = $_SESSION['user']['IdTipoDeUsuario'] == 1;
 $page_title = $is_admin ? 'Todos los Tickets' : 'Mis Tickets';
 ?>
 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title><?php echo $page_title; ?></title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+</head>
+<body>
+
 <!-- Controles de Filtro -->
 <div class="row mb-3">
     <div class="col-md-4">
         <label for="filtroDepartamento" class="form-label">Departamento:</label>
         <select class="form-select" id="filtroDepartamento">
             <option value="">Todos los Departamentos</option>
-            <!-- Las opciones se cargarán dinámicamente -->
         </select>
     </div>
     <div class="col-md-3">
@@ -65,7 +74,6 @@ $page_title = $is_admin ? 'Todos los Tickets' : 'Mis Tickets';
                         </tr>
                     </thead>
                     <tbody id="ticketsBody">
-                        <!-- Los datos se cargarán aquí mediante AJAX -->
                         <tr>
                             <td colspan="<?php echo $is_admin ? 7 : 5; ?>" class="text-center">
                                 <div class="spinner-border" role="status">
@@ -76,39 +84,62 @@ $page_title = $is_admin ? 'Todos los Tickets' : 'Mis Tickets';
                     </tbody>
                 </table>
             </div>
-            <!-- Paginación -->
-            <nav aria-label="Paginación de tickets" class="mt-3">
+            <nav aria-label="Paginación" class="mt-3">
                 <ul class="pagination justify-content-center" id="ticketsPagination"></ul>
             </nav>
         </div>
     </div>
-    <!-- Modal para el Chat -->
-<div class="modal fade" id="chatModal" tabindex="-1" aria-labelledby="chatModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-scrollable modal-lg"> <!-- modal-lg para hacerlo más ancho -->
-    <div class="modal-content">
-      <div class="modal-header">
-        <h1 class="modal-title fs-5" id="chatModalLabel">Chat</h1>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <!-- Contenedor de mensajes -->
-        <div id="chatMessages" style="height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-bottom: 15px;">
-            <!-- Los mensajes se cargarán aquí -->
-            <p class="text-muted">Cargando mensajes...</p>
+
+    <!-- Modal para Chat -->
+    <div class="modal fade" id="chatModal" tabindex="-1" aria-labelledby="chatModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="chatModalLabel">Chat</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="chatMessages" style="height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-bottom: 15px;">
+                        Cargando mensajes...
+                    </div>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="messageInput" placeholder="Escribe tu mensaje...">
+                        <button class="btn btn-primary" type="button" onclick="sendMessage()">Enviar</button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
         </div>
-        <!-- Formulario para enviar mensaje -->
-        <div class="input-group">
-            <input type="text" class="form-control" id="messageInput" placeholder="Escribe tu mensaje...">
-            <button class="btn btn-primary" type="button" onclick="sendMessage()">Enviar</button>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-      </div>
     </div>
-  </div>
+
+    <!-- Modal para Detalle del Ticket -->
+    <div class="modal fade" id="detailModal" tabindex="-1" aria-labelledby="detailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detailModalLabel">Detalle del Ticket #<span id="detailTicketId"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="ticketDetailContent">
+                        Cargando...
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <?php if ($is_admin): ?>
+                        <button type="button" class="btn btn-primary" onclick="assignTicket()">Asignar</button>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
-</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 
 <script>
 let filtrosActuales = {
@@ -121,10 +152,10 @@ const itemsPerPage = 8;
 document.addEventListener('DOMContentLoaded', function() {
     cargarOpcionesDepartamento();
     loadTickets();
-     
+
     let ws = null;
     let reconnectInterval = 3000;
-    let isConneced = false;  
+    let isConnected = false;
 
     // Eventos para filtros
     const btnAplicar = document.getElementById('btnAplicarFiltros');
@@ -132,9 +163,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (btnAplicar) btnAplicar.addEventListener('click', aplicarFiltros);
     if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltros);
+
+    // Conectar WebSocket
+    connectWebSocket();
 });
 
-// --- Cargar tickets desde API ---
 function loadTickets(page = currentPage) {
     currentPage = page;
     const url = new URL('api/tickets.php', window.location.origin + window.location.pathname);
@@ -168,7 +201,6 @@ function loadTickets(page = currentPage) {
             if (data.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 5}" class="text-center">No hay tickets disponibles</td></tr>`;
                 pagination.innerHTML = '';
-                if (responseData.counts && isAdmin) updateAdminCounts(responseData.counts);
                 return;
             }
 
@@ -191,15 +223,23 @@ function loadTickets(page = currentPage) {
                 row += `<td>${formatDate(ticket.FechaCreacion)}</td>`;
                 row += `<td>
                     ${isAdmin ? 
-                        `<button class="btn btn-sm btn-success me-1" onclick="updateTicketStatus(${ticket.IdTickets}, 'Resuelto')"><i class="bi bi-check-circle"></i> Resolver</button>` :
-                        `<button class="btn btn-sm btn-info me-1" onclick="viewTicket(${ticket.IdTickets})"><i class="bi bi-eye"></i> Ver</button>`}
-                    <button class="btn btn-sm btn-primary" onclick="openChat(${ticket.IdTickets})" title="Abrir Chat"><i class="bi bi-chat-dots"></i></button>
+                         `<button class="btn btn-sm btn-success me-1" onclick="updateTicketStatus(${ticket.IdTickets}, 'Resuelto')">
+            <i class="bi bi-check-circle"></i> Resolver
+        </button>` : ''}
+    
+    <button class="btn btn-sm btn-info me-1" onclick="viewTicketDetails(${ticket.IdTickets})">
+        <i class="bi bi-eye"></i> 
+    </button>
+    
+    <button class="btn btn-sm btn-primary" onclick="openChat(${ticket.IdTickets})" title="Abrir Chat">
+        <i class="bi bi-chat-dots"></i>
+    </button>
                 </td>`;
                 row += '</tr>';
                 return row;
             }).join('');
 
-            // Generar paginación
+            // Paginación
             const totalPages = Math.ceil(responseData.total / itemsPerPage);
             let paginationHtml = '';
             for (let i = 1; i <= totalPages; i++) {
@@ -210,8 +250,6 @@ function loadTickets(page = currentPage) {
                 `;
             }
             pagination.innerHTML = paginationHtml;
-
-            if (responseData.counts && isAdmin) updateAdminCounts(responseData.counts);
         })
         .catch(err => {
             console.error('Error al cargar tickets:', err);
@@ -220,7 +258,6 @@ function loadTickets(page = currentPage) {
         });
 }
 
-// --- Filtros ---
 function cargarOpcionesDepartamento() {
     fetch('api/obtener.php')
         .then(r => r.json())
@@ -257,18 +294,6 @@ function limpiarFiltros() {
     loadTickets();
 }
 
-// --- Utilidades ---
-function updateAdminCounts(counts) {
-    const totalEl = document.getElementById('totalTickets');
-    const pendingEl = document.getElementById('pendingTickets');
-    const resolvedEl = document.getElementById('resolvedTickets');
-    const urgentEl = document.getElementById('urgentTickets');
-    if (totalEl) totalEl.textContent = counts.total_tickets || 0;
-    if (pendingEl) pendingEl.textContent = counts.pending_tickets || 0;
-    if (resolvedEl) resolvedEl.textContent = counts.resolved_tickets || 0;
-    if (urgentEl) urgentEl.textContent = counts.urgent_tickets || 0;
-}
-
 function getPriorityClass(priority) {
     switch (priority.toLowerCase()) {
         case 'baja': return 'bg-success';
@@ -284,7 +309,6 @@ function formatDate(dateString) {
     return date.toLocaleDateString('es-ES') + ' ' + date.toLocaleTimeString('es-ES');
 }
 
-// --- Acciones ---
 function updateTicketStatus(ticketId, status) {
     if (confirm(`¿Cambiar el estado a "${status}"?`)) {
         fetch('api/tickets.php', {
@@ -308,12 +332,110 @@ function updateTicketStatus(ticketId, status) {
     }
 }
 
-function viewTicket(ticketId) {
-    alert('Ver detalles del ticket ID: ' + ticketId);
+function viewTicketDetails(ticketId) {
+    const detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
+    document.getElementById('detailTicketId').textContent = ticketId;
+    document.getElementById('ticketDetailContent').innerHTML = 'Cargando...'; // Reset to loading
+    detailModal.show(); // Mostrar el modal inmediatamente
+
+    fetch(`api/tickets.php?id=${ticketId}`)
+        .then(r => r.json())
+        .then(data => {
+            const contentDiv = document.getElementById('ticketDetailContent');
+            if (data.error) {
+                contentDiv.innerHTML = `<p class="text-danger">${data.error}</p>`;
+                return;
+            }
+
+            const ticket = data.ticket;
+            const isAssigned = ticket.IdUsuarioAsignado !== null;
+
+            contentDiv.innerHTML = `
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Título:</strong> ${ticket.Titulo}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Prioridad:</strong> 
+                        <span class="badge ${getPriorityClass(ticket.Prioridad)}">${ticket.Prioridad}</span>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Estado:</strong> <span class="badge bg-secondary">${ticket.EstadoTicket}</span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Departamento:</strong> ${ticket.nombre_departamento || 'N/A'}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Creado por:</strong> ${ticket.usuario_nombre || 'N/A'} (${ticket.usuario_puesto})
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Asignado a:</strong> 
+                        ${isAssigned ? ticket.asignado_nombre : '<em>Ninguno</em>'}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Fecha creación:</strong> ${formatDate(ticket.FechaCreacion)}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Última modificación:</strong> ${formatDate(ticket.FechaModificar)}
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <strong>Descripción:</strong><br>
+                    <p>${ticket.Descripcion}</p>
+                </div>
+                <div class="mb-3">
+                    <strong>Historial:</strong>
+                    <ul class="list-group">
+                        ${ticket.historial ? ticket.historial.map(h => `
+                            <li class="list-group-item small">
+                                <small>${h.Accion} por ${h.nombre_usuario} el ${formatDate(h.FechaAccion)}</small>
+                            </li>
+                        `).join('') : '<li class="list-group-item text-muted">Sin historial</li>'}
+                    </ul>
+                </div>
+            `;
+        })
+        .catch(err => {
+            console.error('Error al cargar detalles:', err);
+            document.getElementById('ticketDetailContent').innerHTML = '<p class="text-danger">Error al cargar los detalles.</p>';
+        });
 }
 
-// --- Chat ---
-let currentChatTicketId = null;
+function assignTicket() {
+    const ticketId = document.getElementById('detailTicketId').textContent;
+    const userId = prompt("ID del usuario a quien asignar el ticket:");
+    if (!userId || isNaN(userId)) {
+        alert("Por favor ingresa un ID válido.");
+        return;
+    }
+
+    fetch('api/tickets.php', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            id_ticket: ticketId,
+            action: 'assign',
+            user_id: parseInt(userId)
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('Ticket asignado correctamente.');
+            viewTicketDetails(ticketId);
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(err => console.error(err));
+}
+
 function openChat(ticketId) {
     currentChatTicketId = ticketId;
     const chatModal = new bootstrap.Modal(document.getElementById('chatModal'));
@@ -385,21 +507,17 @@ function sendMessage() {
 
 function connectWebSocket() {
     try {
-        // Usar ws://localhost:8080 si estás en local
         ws = new WebSocket('ws://localhost:8080');
         
         ws.onopen = function(event) {
             console.log('✅ Conectado al WebSocket');
             isConnected = true;
             
-            // Registrar usuario
             const userId = <?php echo json_encode($_SESSION['user']['IdUsuario']); ?>;
             ws.send(JSON.stringify({
                 type: 'register',
                 user_id: userId
             }));
-            
-            showNotification('Conectado al sistema de notificaciones', null, 'success');
         };
 
         ws.onmessage = function(event) {
@@ -407,7 +525,6 @@ function connectWebSocket() {
                 const data = JSON.parse(event.data);
                 if (data.type === 'notification') {
                     showNotification(data.message, data.ticket_id);
-                    // Recargar tickets automáticamente
                     loadTickets();
                 }
             } catch (e) {
@@ -417,11 +534,9 @@ function connectWebSocket() {
 
         ws.onclose = function(event) {
             if (isConnected) {
-                console.log('❌ WebSocket cerrado. Reconectando en ' + (reconnectInterval/1000) + ' segundos...');
-                showNotification('Conexión perdida. Reconectando...', null, 'warning');
+                setTimeout(connectWebSocket, reconnectInterval);
             }
             isConnected = false;
-            setTimeout(connectWebSocket, reconnectInterval);
         };
 
         ws.onerror = function(error) {
@@ -435,9 +550,7 @@ function connectWebSocket() {
     }
 }
 
-// Mostrar notificación al usuario
 function showNotification(message, ticketId = null, type = 'info') {
-    // Crear contenedor de notificaciones si no existe
     let container = document.getElementById('notifications-container');
     if (!container) {
         container = document.createElement('div');
@@ -446,7 +559,6 @@ function showNotification(message, ticketId = null, type = 'info') {
         document.body.appendChild(container);
     }
 
-    // Crear notificación
     const notification = document.createElement('div');
     notification.className = `alert alert-${type} alert-dismissible fade show`;
     notification.style.cssText = 'min-width: 300px; margin-bottom: 10px; animation: slideInRight 0.3s;';
@@ -459,28 +571,10 @@ function showNotification(message, ticketId = null, type = 'info') {
     
     container.appendChild(notification);
     
-    // Auto cerrar después de 5 segundos
     setTimeout(() => {
         if (notification.parentNode) {
             notification.remove();
         }
     }, 5000);
 }
-
-// Enviar notificación (para pruebas)
-function sendTestNotification() {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-            type: 'notification',
-            target_user_id: <?php echo json_encode($_SESSION['user']['IdUsuario']); ?>,
-            message: 'Notificación de prueba'
-        }));
-    }
-}
-
-// Iniciar conexión WebSocket cuando se carga la página
-document.addEventListener('DOMContentLoaded', function() {
-    connectWebSocket();
-    // ... resto de tu código existente
-});
 </script>

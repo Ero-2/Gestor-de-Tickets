@@ -101,10 +101,11 @@ try {
         new HttpServer(
             new WsServer(new TicketNotification())
         ),
-        8080
+        8080,
+        '0.0.0.0' // 🔹 Escucha en todas las interfaces (no solo localhost)
     );
 
-    echo "[SERVIDOR] WebSocket iniciado en ws://localhost:8080\n";
+    echo "[SERVIDOR] WebSocket iniciado en ws://0.0.0.0:8080\n";
     $server->run();
 } catch (Exception $e) {
     echo "[FATAL] Error al iniciar servidor: " . $e->getMessage() . "\n";
