@@ -83,6 +83,9 @@ $is_admin = $_SESSION['user']['IdTipoDeUsuario'] == 1;
         <a class="nav-link" href="inicio.php?page=tickets"><i class="bi bi-ticket-detailed"></i> Tickets</a>
       </li>
       <li class="nav-item">
+        <a class="nav-link" href="inicio.php?page=asignaciones"><i class="bi bi-ticket-detailed"></i>Asignaciones</a>
+      </li>
+      <li class="nav-item">
         <a class="nav-link" href="inicio.php?page=resueltos"><i class="bi bi-ticket-detailed"></i> Tickets Resueltos</a>
       </li>
       <li class="nav-item">

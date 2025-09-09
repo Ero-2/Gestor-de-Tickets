@@ -40,10 +40,6 @@
         <div id="mensaje" class="mt-3 text-center"></div>
 
         <div class="text-center mt-3">
-          <a href="registro.php">¿No tienes cuenta? Regístrate aquí</a>
-        </div>
-
-        <div class="text-center mt-3">
           <a href="recuperar.php">Recupera tu contraseña</a>
         </div>
 

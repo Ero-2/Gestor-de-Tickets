@@ -20,7 +20,7 @@ $allowed_pages = ['dashboard', 'perfil','registro'];
 
 if ($is_admin) {
     // Páginas permitidas para administradores
-    $allowed_pages = array_merge($allowed_pages, ['tickets', 'admin', 'registro', 'resueltos', 'gestionar_usuarios']);
+    $allowed_pages = array_merge($allowed_pages, ['tickets', 'admin', 'registro', 'resueltos','asignaciones', 'gestionar_usuarios']);
 } else {
     // Páginas permitidas para usuarios normales
     $allowed_pages = array_merge($allowed_pages, ['tickets', 'crear-ticket']);
