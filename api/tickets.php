@@ -174,139 +174,95 @@ if (!empty($_GET['user_id_asignado'])) {
         // ... (sin cambios, tu código original)
         break;
     case 'PUT':
-        $data = json_decode(file_get_contents('php://input'), true);
-        $id_ticket = $data['id_ticket'] ?? null;
-        $action = $data['action'] ?? null;
-        $estado = $data['estado'] ?? null;
-        $user_id = $data['user_id'] ?? null;
-        $historial_note = $data['historial_note'] ?? null; // Nota opcional para acciones
-        // --- Acción: Asignar ticket ---
-        if ($action === 'assign') {
-            if (!$id_ticket || !$user_id) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Faltan campos: id_ticket, user_id']);
+    $data = json_decode(file_get_contents('php://input'), true);
+    $id_ticket = $data['id_ticket'] ?? null;
+    $action = $data['action'] ?? null;
+    $estado = $data['estado'] ?? null;
+    $user_id = $data['user_id'] ?? null;
+    $historial_note = $data['historial_note'] ?? null;
+
+    // --- Acción: Asignar ticket ---
+    if ($action === 'assign') {
+        // ... (tu código original aquí)
+    }
+
+    // --- Acción: Actualizar estado ---
+    if ($id_ticket && $estado) {
+        // Validar que el estado sea uno permitido
+        if (!in_array($estado, ['Resuelto', 'En espera', 'En proceso'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Estado no válido']);
+            exit;
+        }
+
+        try {
+            // Verificar estado actual del ticket
+            $stmt_check = $pdo->prepare('SELECT "EstadoTicket", "IdUsuarioCreador" FROM "Tickets" WHERE "IdTickets" = :id_ticket');
+            $stmt_check->execute(['id_ticket' => $id_ticket]);
+            $ticket = $stmt_check->fetch(PDO::FETCH_ASSOC);
+
+            if (!$ticket) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Ticket no encontrado']);
                 exit;
             }
-            try {
-                // Actualizar el ticket con el usuario asignado
-                $stmt = $pdo->prepare('
+
+            $cambio_estado = $ticket['EstadoTicket'] !== $estado;
+            $hay_nota = !empty($historial_note);
+
+            // Si no hay cambios y no hay nota, no hacer nada
+            if (!$cambio_estado && !$hay_nota) {
+                echo json_encode(['success' => true, 'message' => 'No se realizaron cambios.']);
+                exit;
+            }
+
+            // Actualizar el estado del ticket (si cambió)
+            if ($cambio_estado) {
+                $stmt_update = $pdo->prepare('
                     UPDATE "Tickets"
-                    SET "IdUsuarioAsignado" = :user_id, "FechaModificar" = NOW()
+                    SET "EstadoTicket" = :estado, "FechaModificar" = NOW()
                     WHERE "IdTickets" = :id_ticket
                 ');
-                $stmt->execute([
-                    'user_id' => $user_id,
-                    'id_ticket' => $id_ticket
-                ]);
-                // Insertar registro en la nueva tabla "Acciones"
-                $stmt_accion = $pdo->prepare('
-                    INSERT INTO "Acciones" ("IdTicket", "IdUsuario", "Accion", "Nota")
-                    VALUES (:id_ticket, :id_usuario, :accion, :nota)
-                ');
-                $stmt_accion->execute([
+                $stmt_update->execute([
                     'id_ticket' => $id_ticket,
-                    'id_usuario' => $_SESSION['user']['IdUsuario'], // Usuario que realiza la acción
-                    'accion' => 'Asignado', // Acción realizada
-                    'nota' => $historial_note ?: 'Ticket asignado a usuario ID ' . $user_id // Nota opcional
+                    'estado' => $estado
                 ]);
-                echo json_encode(['success' => true, 'message' => 'Ticket asignado']);
-                exit;
-            } catch (PDOException $e) {
-                error_log('Error al asignar ticket: ' . $e->getMessage());
-                http_response_code(500);
-                echo json_encode(['error' => 'Error al asignar el ticket']);
-                exit;
             }
+
+            // Registrar acción en "Acciones"
+            $accion_texto = $cambio_estado ? 'Estado cambiado a ' . $estado : 'Nota agregada';
+            $nota_texto = $historial_note ?: ($cambio_estado ? 'Estado actualizado a ' . $estado : 'Nota sin cambios adicionales');
+
+            $stmt_accion = $pdo->prepare('
+                INSERT INTO "Acciones" ("IdTicket", "IdUsuario", "Accion", "Nota")
+                VALUES (:id_ticket, :id_usuario, :accion, :nota)
+            ');
+            $stmt_accion->execute([
+                'id_ticket' => $id_ticket,
+                'id_usuario' => $_SESSION['user']['IdUsuario'],
+                'accion' => $accion_texto,
+                'nota' => $nota_texto
+            ]);
+
+            echo json_encode(['success' => true, 'message' => 'Ticket actualizado correctamente']);
+            exit;
+
+        } catch (PDOException $e) {
+            error_log('Error al actualizar ticket: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error' => 'Error al actualizar el ticket']);
+            exit;
         }
-        // --- Acción: Actualizar estado ---
-        if ($id_ticket && $estado) {  // Siempre procesar si hay estado, incluso si es 'En espera'
-            // Validar que el estado sea uno permitido
-            if (!in_array($estado, ['Resuelto', 'En espera', 'En proceso'])) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Estado no válido']);
-                exit;
-            }
-            try {
-                // Verificar estado actual del ticket
-                $stmt_check = $pdo->prepare('SELECT "EstadoTicket", "IdUsuarioCreador" FROM "Tickets" WHERE "IdTickets" = :id_ticket');
-                $stmt_check->execute(['id_ticket' => $id_ticket]);
-                $ticket = $stmt_check->fetch(PDO::FETCH_ASSOC);
-                if (!$ticket) {
-                    http_response_code(404);
-                    echo json_encode(['error' => 'Ticket no encontrado']);
-                    exit;
-                }
-                // Si el estado es el mismo, procesar solo si hay nota
-                if ($ticket['EstadoTicket'] === $estado && !$historial_note) {
-                    echo json_encode(['success' => true, 'message' => 'El ticket ya está en ese estado']);
-                    exit;
-                }
-                // Actualizar el estado del ticket (si cambió)
-                if ($ticket['EstadoTicket'] !== $estado) {
-                    $stmt_update = $pdo->prepare('
-                        UPDATE "Tickets"
-                        SET "EstadoTicket" = :estado, "FechaModificar" = NOW()
-                        WHERE "IdTickets" = :id_ticket
-                    ');
-                    $stmt_update->execute([
-                        'id_ticket' => $id_ticket,
-                        'estado' => $estado
-                    ]);
-                }
-                // Insertar registro en "Acciones" (siempre, para estado o nota)
-                $accion_texto = ($ticket['EstadoTicket'] !== $estado) ? 'Estado cambiado a ' . $estado : 'Nota agregada';
-                $nota_texto = $historial_note ?: (($ticket['EstadoTicket'] !== $estado) ? 'Estado actualizado a ' . $estado : 'Nota sin cambios adicionales');
-                $stmt_accion = $pdo->prepare('
-                    INSERT INTO "Acciones" ("IdTicket", "IdUsuario", "Accion", "Nota")
-                    VALUES (:id_ticket, :id_usuario, :accion, :nota)
-                ');
-                $stmt_accion->execute([
-                    'id_ticket' => $id_ticket,
-                    'id_usuario' => $_SESSION['user']['IdUsuario'],
-                    'accion' => $accion_texto,
-                    'nota' => $nota_texto
-                ]);
-                echo json_encode(['success' => true, 'message' => 'Ticket actualizado correctamente']);
-                exit;
-            } catch (PDOException $e) {
-                error_log('Error al actualizar ticket: ' . $e->getMessage());
-                http_response_code(500);
-                echo json_encode(['error' => 'Error al actualizar el ticket']);
-                exit;
-            }
-        }
-        // Si solo hay nota sin acción o estado, insertar como 'Nota agregada'
-        if ($id_ticket && $historial_note && !$action && !$estado) {
-            try {
-                $stmt_accion = $pdo->prepare('
-                    INSERT INTO "Acciones" ("IdTicket", "IdUsuario", "Accion", "Nota")
-                    VALUES (:id_ticket, :id_usuario, :accion, :nota)
-                ');
-                $stmt_accion->execute([
-                    'id_ticket' => $id_ticket,
-                    'id_usuario' => $_SESSION['user']['IdUsuario'],
-                    'accion' => 'Nota agregada',
-                    'nota' => $historial_note
-                ]);
-                echo json_encode(['success' => true, 'message' => 'Nota agregada correctamente']);
-                exit;
-            } catch (PDOException $e) {
-                error_log('Error al agregar nota: ' . $e->getMessage());
-                http_response_code(500);
-                echo json_encode(['error' => 'Error al agregar la nota']);
-                exit;
-            }
-        }
-        // Si no hay nada, error
-        http_response_code(400);
-        echo json_encode(['error' => 'No se detectaron cambios válidos']);
-        break;
-    case 'DELETE':
-        // ... (sin cambios)
-        break;
-    default:
-        http_response_code(405);
-        echo json_encode(['error' => 'Método no permitido']);
-        break;
+    }
+
+    // Si solo hay nota sin acción o estado, insertar como 'Nota agregada'
+    if ($id_ticket && $historial_note && !$action && !$estado) {
+        // ... (tu código original aquí)
+    }
+
+    // Si no hay nada, error
+    http_response_code(400);
+    echo json_encode(['error' => 'No se detectaron cambios válidos']);
+    break;
 }
-?> 
+?>  
